@@ -1,0 +1,116 @@
+---
+title: "{{< fa flask >}} **Econométrie Appliquée**"
+title-block-banner: true
+subtitle: "Quelques exercices de traitement de données sous {{< fa brands r-project >}}"
+toc: true
+toc-title: 📚 Table des matières
+lang: fr
+number-sections: true
+author:
+  - name: "*Corentin Ducloux*"
+    affiliation: 
+      - name: Université de Tours
+        url: https://www.univ-tours.fr/
+date: today
+date-format: short
+include-in-header: 
+    - text: | 
+        <link href='https://fonts.googleapis.com/css?family=Fira Code' rel='stylesheet'>
+format:
+    html:
+        theme: yeti
+        monofont: "Fira Code"
+        fontsize: 1em
+        embed-resources: true
+        html-math-method: mathjax
+        code-fold: show
+        anchor-sections: true
+        smooth-scroll: true
+        citations-hover: true
+        footnotes-hover: true
+        link-external-icon: true
+        link-external-newwindow: true
+code-block-bg: "#F1F3F5"
+code-block-border-left: "#31BAE9"
+license: "CC BY-SA"
+
+crossref:
+    eq-prefix: équation
+    tbl-prefix: Tableau
+---
+
+> *"L'heure de gloire de cette matière c'est les années 2000."*
+
+- Inclure les références bibliographiques dans le document après.
+
+# Fonction de production
+
+## Introduction
+
+@eq-black-scholes
+
+$$
+\frac{\partial \mathrm C}{ \partial \mathrm t } + \frac{1}{2}\sigma^{2} \mathrm S^{2}
+\frac{\partial^{2} \mathrm C}{\partial \mathrm C^2}
+  + \mathrm r \mathrm S \frac{\partial \mathrm C}{\partial \mathrm S}\ =
+  \mathrm r \mathrm C 
+$$ {#eq-black-scholes}
+
+:::{.callout-important}
+Un truc important
+:::
+
+| Tables   |      Are      |  Cool |
+|----------|:-------------:|------:|
+| col 1 is |  left-aligned | $x^2$ |
+| col 2 is |    centered   |   $12 |
+| col 3 is | right-aligned |    $1 |
+
+: Tableau test {#tbl-test .hover}
+
+## Qu'est ce qu'une fonction de production ?
+
+### La fonction **Cobb-Douglas** 
+
+:::{.callout-note}
+
+## Définition
+
+- La fonction de production **Cobb-Douglas** :
+
+$$
+y = A\prod^N_{k=1}x_k^{a_k}
+$$
+
+- La **Cobb-Douglas** est homogène de degré $\mu = \sum\alpha_i$
+
+- Quand $\mu = \sum\alpha_i = 1$, alors la **CD** a des rendements d'échelle constants
+
+**Remarque** : Définie ici, la **CD** est une généralisation à $N$ inputs de la fonction **CD** !
+
+:::
+
+- Dans le projet, on pourra estimer 4 fonctions :
+
+  - **Cobb-Douglas**
+  - **Constant Elasticity of Substitution**
+  - **Translog Function**
+  - **Generalized Leontieff**
+
+## Qu'est ce qu'une fonction de coût ?
+
+## Faible séparabilité 
+
+## Estimation économétrique des formes Trans-Log et Leontief Généralisées
+
+## Qualité de l'ajustement et tests d'hypothèses
+
+## Formes flexibles et conditions de régularité
+
+## Un exemple disponible dans la littérature
+
+
+
+# Fonction frontière de production
+
+# Demande du consommateur

@@ -1,0 +1,409 @@
+---
+title: "{{< fa flask >}} **Econométrie Appliquée**"
+title-block-banner: apples.png
+subtitle: "Des 🍏 sur {{< fa brands r-project >}} !"
+toc: true
+toc-title: 📚 Table des matières
+lang: fr
+number-sections: true
+author:
+  - name: "*Corentin Ducloux*"
+    affiliation: 
+      - name: Université de Tours
+        url: https://www.univ-tours.fr/
+  - name: "*Guillaume Devant*"
+    affiliation: 
+      - name: Université de Tours
+        url: https://www.univ-tours.fr/
+date: today
+date-format: short
+include-in-header: 
+    - text: | 
+        <link href='https://fonts.googleapis.com/css?family=Fira Code' rel='stylesheet'>
+format:
+    html:
+        theme: simplex
+        monofont: "Fira Code"
+        fontsize: 1em
+        embed-resources: true
+        html-math-method: mathjax
+        code-fold: show
+        anchor-sections: true
+        smooth-scroll: true
+        citations-hover: true
+        footnotes-hover: true
+        link-external-icon: true
+        link-external-newwindow: true
+code-block-bg: "#F1F3F5"
+code-block-border-left: "#d9230f"
+license: "CC BY-SA"
+bibliography: references.bib
+
+crossref:
+    eq-prefix: équation
+    tbl-prefix: Tableau
+---
+
+```{css, echo=FALSE}
+.title {
+    color: white;
+}
+.subtitle {
+    color: white;
+}
+```
+
+## Imports
+
+```{r}
+#| label: lib_imports
+#| warning: false
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(micEcon)
+library(stargazer)
+library(gt)
+library(tibble)
+library(knitr)
+library(plotly)
+```
+
+```{r}
+#| label : colors
+bg_color <- "#FCFCFC"
+```
+
+## Description des données
+
+Le jeu de données `appleProdFr86` utilisé dans le papier d'économétrie de @ivaldi1996 comprend des données transversales de production de **140** producteurs de pommes français datant de l’année 1986. 
+
+
+```{r}
+#| label: data_import
+apples <- read_excel("data/appleProdFr86.xlsx")
+```
+
+| Colonnes    | Description                                                                                              |
+|-------------|----------------------------------------------------------------------------------------------------------|
+| `vCap`      | Coûts associés au **capital** *(foncier compris)*.                                                       |
+| `vLab`      | Coûts associés au **travail** *(y compris la rémunération du travail familial non rémunéré)*.            |
+| `vMat`      | Coûts des **matières intermédiaires** *(plantations, engrais, pesticides, carburant, etc)*.              |
+| `qApples`   | Indice de quantité des pommes produites.                                                                 |
+| `qOtherOut` | Indice de quantité de tous les autres outputs.                                                           |
+| `qOut`      | Indice de quantité de toute la production $\Rightarrow 580000 \cdot (\text{qApples} + \text{qOtherOut})$ |
+| `pCap`      | Indice des prix du **capital**.                                                                           |
+| `pLab`      | Indice des prix du **travail**.                                                                           |
+| `pMat`      | Indice des prix des **matières intermédiaires**.                                                          |
+| `pOut`      | Indice des prix de la production globale.                                                                 |
+| `adv`       | Distingue les producteurs qui sont conseillés par des laboratoires d'agronomie.                           |
+
+: Descriptif des colonnes {.hover}
+
+### Tableau descriptif
+
+> Ce tableau descriptif retrace les 10 premières observations et l'ensemble des variables associées dans le *dataset*.
+
+```{r}
+#| label: descriptive table
+apples |>
+    head(n = 10) |>
+    gt() |>
+    tab_header(
+        title = md("**Producteurs de pommes 🍎**"),
+        subtitle = md("*140 producteurs* 🇫🇷 *(1986)*")
+    ) |>
+    tab_source_note(
+        source_note = "Source: Ivaldi et al. (1996)"
+    ) |>
+    tab_spanner(
+        label = "Costs",
+        columns = c("vCap", "vLab", "vMat")
+    ) |>
+    tab_spanner(
+        label = "Price Index",
+        columns = c("pCap", "pLab", "pMat", "pOut")
+    ) |>
+    tab_spanner(
+        label = "Quantity Index",
+        columns = c("qApples", "qOtherOut", "qOut")
+    ) |>
+    tab_style(
+        style = list(
+            cell_fill(color = "lavenderblush")
+        ),
+        location = cells_body(columns = c(vCap, vLab, vMat))
+    ) |>
+    tab_style(
+        style = list(
+            cell_fill(color = "ivory")
+        ),
+        location = cells_body(columns = c(qApples, qOtherOut, qOut))
+    ) |>
+    tab_style(
+        style = list(
+            cell_fill(color = "aliceblue")
+        ),
+        location = cells_body(columns = c(pCap, pLab, pMat, pOut))
+    ) |>
+    fmt_number(suffixing = TRUE, n_sigfi = 2) |>
+    text_case_match(
+        "1.0" ~ fontawesome::fa("check"),
+        "0" ~ fontawesome::fa("xmark"),
+        .locations = cells_body(columns = adv)
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+## Analyse exploratoire
+
+**ACP à faire ?** pourrait être intéressant
+
+```{r}
+apples_num <- apples |>
+    select(-N)
+
+cor <- apples_num |> cor()
+
+fig <- plot_ly(
+    x = colnames(apples_num), y = colnames(apples_num),
+    z = cor, type = "heatmap", colors = "Greys"
+)
+fig
+
+fig <- plot_ly(x = apples$vCap, type = "histogram", nbinsx = 30, alpha = 0.6)
+fig
+
+fig <- plot_ly(alpha = 0.6, nbinsx = 50)
+fig <- fig %>% add_histogram(apples$vCap[apples$adv == 1], name = "advisory service")
+fig <- fig %>% add_histogram(apples$vCap[apples$adv == 0], name = "not advisory service")
+fig <- fig %>% layout(
+    barmode = "overlay",
+    yaxis = list(title = "Frequency"),
+    xaxis = list(title = "Values")
+)
+fig
+```
+
+```{r}
+apples |>
+    select(qApples, adv) |>
+    group_by(adv) |>
+    summarise(mean = mean(qApples))
+```
+
+## Fonction Cobb-Douglas
+
+:::{.callout-tip}
+
+## Forme générale d'une fonction Cobb-Douglas
+
+La forme est généralisée à $N$ inputs.
+
+$$y = A \prod_{k=1}^N x_k^{a_k}$$
+
+:::
+
+Dans le cadre de cette étude comparative, nous avons 3 *inputs* :
+
+- `qCap` $\Rightarrow$ la quantité de capital
+- `qLab` $\Rightarrow$ la quantité de travail
+- `qMat` $\Rightarrow$ la quantité de matériaux
+
+Nous obtenons donc la forme suivante :
+
+$$q_{Out} = A\cdot q_{Cap}^\alpha \cdot q_{Lab}^\beta \cdot q_{Mat}^\gamma$$
+
+*Avec $A, \alpha, \beta, \gamma \Rightarrow$ 4 paramètres à estimer.*
+
+On peut facilement linéariser la fonction, dès lors on obtient :
+
+$$
+\ln(q_{out}) = \ln(A) + \alpha \cdot \ln(q_{Cap}) + \beta \cdot \ln(q_{Lab}) + \gamma \cdot \ln(q_{Mat})
+$$
+
+Allen Elasticity of Substitution (AES)
+
+$\sigma_{\{\text{qCap, qLab, qMat}\}} = 1$
+
+
+**Rappel** : Si la fonction de production est **Cobb-Douglas**, alors on a normalement $\hat\alpha + \hat\beta + \hat\gamma = 1$
+
+On peut tester cette hypothèse : 
+
+$$
+\begin{cases}
+H_0 : \alpha + \beta + \gamma = 1\\
+H_1 : \alpha + \beta + \gamma \neq 1\\
+\end{cases}
+$$
+
+```{r}
+cd_prod_1 <- lm(log(qOut) ~ log(qCap) + log(qLab) + log(qMat), data = apples)
+
+coefficients <- summary(cd_prod_1)$coefficients[, 1]
+std_values <- summary(cd_prod_1)$coefficients[, 2]
+pvalues <- summary(cd_prod_1)$coefficients[, 4]
+
+cobb_douglas <- data.frame(cbind(coefficients, std_values, pvalues))
+
+r2 <- round(summary(cd_prod_1)$r.squared, 3)
+adj_r2 <- round(summary(cd_prod_1)$adj.r.squared, 3)
+n <- nobs(cd_prod_1)
+```
+
+```{r}
+cobb_douglas |>
+    tibble() |>
+    add_column(description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`"
+    ), .before = coefficients) |>
+    add_column(names = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"), .before = coefficients) |>
+    add_column(significativite = case_when(
+        pvalues < 0.001 ~ "$***$",
+        pvalues < 0.05 ~ "$**$",
+        pvalues < 0.1 ~ "$*$",
+        .default = ""
+    )) |>
+    gt(rowname_col = "names") |>
+    cols_label(
+        description = md("**Description**"),
+        coefficients = md("**Coefficients**"),
+        std_values = md("**Ecart Type**"),
+        pvalues = md("**Pvalues**"),
+        significativite = md("**Significativité**")
+    ) |>
+    fmt_markdown(columns = c(names, description, significativite)) |>
+    fmt_number(columns = c(coefficients, pvalues), decimals = 3) |>
+    fmt(columns = std_values, fns = function(std) {
+        paste("+/-", round(std, 3))
+    }) |>
+    # data_color(columns = coefficients) |>
+    tab_footnote(footnote = md(sprintf("*Observations* : %s", n))) |>
+    tab_footnote(footnote = md("***")) |>
+    tab_footnote(footnote = md(sprintf("$R^2=$ %s", r2))) |>
+    tab_footnote(footnote = md(sprintf("$R^2_{adj}=$ %s", adj_r2))) |>
+    tab_header(
+        title = md("**Fonction de production Cobb-Douglas**"),
+        subtitle = md("Variable dépendante : *qOut*")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+
+```{r}
+# Estime une fonction Cobb Douglas avec l'argument linear
+cd_prod <- translogEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    apples,
+    linear = TRUE
+)
+```
+
+```{r}
+makestars <- function(pvalues) {
+    return(
+        dplyr::case_when(
+            pvalues < 0.001 ~ "$***$",
+            pvalues < 0.05 ~ "$**$",
+            pvalues < 0.1 ~ "$*$",
+            .default = ""
+        )
+    )
+}
+
+
+gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) {
+    coefficients <- summary(model)$coefTable[1:n_coef, 1]
+    std_values <- summary(model)$coefTable[1:n_coef, 2]
+    pvalues <- summary(model)$coefTable[1:n_coef, 4]
+    signif <- makestars(pvalues)
+    r2 <- round(summary(model)$r2, 3)
+    adj_r2 <- round(summary(model)$r2bar, 3)
+    n <- summary(model)$nObs
+    dep_variable <- summary(model)$yName
+    coefnames <- coefnames
+    description <- description
+    reg_results <- data.frame(cbind(coefnames, description, coefficients, std_values, pvalues, signif)) |>
+        tibble() |>
+        mutate(across(c(coefficients, std_values, pvalues), as.numeric))
+
+    table <- reg_results |>
+        gt(rowname_col = "coefnames") |>
+        cols_label(
+            description = md("**Description**"),
+            coefficients = md("**Coefficients**"),
+            std_values = md("**Ecart Type**"),
+            pvalues = md("**Pvalues**"),
+            signif = md("**Significativité**")
+        ) |>
+        fmt_markdown(columns = c(coefnames, signif, description)) |>
+        fmt_number(columns = c(coefficients, pvalues), decimals = 3) |>
+        fmt(columns = std_values, fns = function(std) {
+            paste("+/-", round(std, 3))
+        }) |>
+        tab_footnote(footnote = md(sprintf("*Observations* : %s", n))) |>
+        tab_footnote(footnote = md("***")) |>
+        tab_footnote(footnote = md(sprintf("$R^2=$ %s", r2))) |>
+        tab_footnote(footnote = md(sprintf("$R^2_{adj}=$ %s", adj_r2))) |>
+        tab_header(
+            title = md(title),
+            subtitle = md(sprintf("Variable dépendante : *%s*", dep_variable))
+        ) |>
+        tab_options(
+            table.background.color = bg_color
+        )
+
+    return(table)
+}
+```
+
+
+```{r}
+gtgazer(
+    cd_prod,
+    n_coef = 4,
+    coefnames = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`"
+    ),
+    title = "**Fonction de production Cobb-Douglas**",
+    bg_color = bg_color
+)
+```
+
+
+```{r}
+summary(cd_prod$est)
+```
+
+
+```{r}
+apples <- apples |> mutate(cost = vCap + vLab + vMat)
+```
+
+```{r}
+# Estime une fonction Cobb Douglas avec l'argument linear
+# translogCostEst("cost", "qOut", c("qCap", "qLab", "qMat"), apples)
+```
+
+- Avec la fonction de cout on trouve 2.7 -- à vérifier 
+
+Estimer des fonctions de cout, les rendements d'échelle, estimer la fonction CES, la leontieff généralisée, calculer le profit des producteurs, lien entre efficacité, optimalité, vérifier hétéroscédasticité.
+
+```{r}
+cobbDouglasCalc(c("qCap", "qLab", "qMat"), apples, coef(cd_prod)[1:4], coefCov = NULL, dataLogged = FALSE)
+```
+
+
