@@ -53,6 +53,66 @@ crossref:
 }
 ```
 
+```{r}
+#| label: functions
+
+makestars <- function(pvalues) {
+    return(
+        dplyr::case_when(
+            pvalues < 0.001 ~ "$***$",
+            pvalues < 0.05 ~ "$**$",
+            pvalues < 0.1 ~ "$*$",
+            .default = ""
+        )
+    )
+}
+
+
+gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) {
+    coefficients <- summary(model)$coefTable[1:n_coef, 1]
+    std_values <- summary(model)$coefTable[1:n_coef, 2]
+    pvalues <- summary(model)$coefTable[1:n_coef, 4]
+    signif <- makestars(pvalues)
+    r2 <- round(summary(model)$r2, 3)
+    adj_r2 <- round(summary(model)$r2bar, 3)
+    n <- summary(model)$nObs
+    dep_variable <- summary(model)$yName
+    coefnames <- coefnames
+    description <- description
+    reg_results <- data.frame(cbind(coefnames, description, coefficients, std_values, pvalues, signif)) |>
+        tibble() |>
+        mutate(across(c(coefficients, std_values, pvalues), as.numeric))
+
+    table <- reg_results |>
+        gt(rowname_col = "coefnames") |>
+        cols_label(
+            description = md("**Description**"),
+            coefficients = md("**Coefficients**"),
+            std_values = md("**Ecart Type**"),
+            pvalues = md("**Pvalues**"),
+            signif = md("**Significativité**")
+        ) |>
+        fmt_markdown(columns = c(coefnames, signif, description)) |>
+        fmt_number(columns = c(coefficients, pvalues), decimals = 3) |>
+        fmt(columns = std_values, fns = function(std) {
+            paste("+/-", round(std, 3))
+        }) |>
+        tab_footnote(footnote = md(sprintf("*Observations* : %s", n))) |>
+        tab_footnote(footnote = md("***")) |>
+        tab_footnote(footnote = md(sprintf("$R^2=$ %s", r2))) |>
+        tab_footnote(footnote = md(sprintf("$R^2_{adj}=$ %s", adj_r2))) |>
+        tab_header(
+            title = md(title),
+            subtitle = md(sprintf("Variable dépendante : *%s*", dep_variable))
+        ) |>
+        tab_options(
+            table.background.color = bg_color
+        )
+
+    return(table)
+}
+```
+
 ## Imports
 
 ```{r}
@@ -77,7 +137,6 @@ bg_color <- "#FCFCFC"
 ## Description des données
 
 Le jeu de données `appleProdFr86` utilisé dans le papier d'économétrie de @ivaldi1996 comprend des données transversales de production de **140** producteurs de pommes français datant de l’année 1986. 
-
 
 ```{r}
 #| label: data_import
@@ -240,63 +299,6 @@ H_1 : \alpha + \beta + \gamma \neq 1\\
 \end{cases}
 $$
 
-```{r}
-cd_prod_1 <- lm(log(qOut) ~ log(qCap) + log(qLab) + log(qMat), data = apples)
-
-coefficients <- summary(cd_prod_1)$coefficients[, 1]
-std_values <- summary(cd_prod_1)$coefficients[, 2]
-pvalues <- summary(cd_prod_1)$coefficients[, 4]
-
-cobb_douglas <- data.frame(cbind(coefficients, std_values, pvalues))
-
-r2 <- round(summary(cd_prod_1)$r.squared, 3)
-adj_r2 <- round(summary(cd_prod_1)$adj.r.squared, 3)
-n <- nobs(cd_prod_1)
-```
-
-```{r}
-cobb_douglas |>
-    tibble() |>
-    add_column(description = c(
-        "- Constante du modèle",
-        "- Coefficient associé à la variable `qCap`",
-        "- Coefficient associé à la variable `qLab`",
-        "- Coefficient associé à la variable `qMat`"
-    ), .before = coefficients) |>
-    add_column(names = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"), .before = coefficients) |>
-    add_column(significativite = case_when(
-        pvalues < 0.001 ~ "$***$",
-        pvalues < 0.05 ~ "$**$",
-        pvalues < 0.1 ~ "$*$",
-        .default = ""
-    )) |>
-    gt(rowname_col = "names") |>
-    cols_label(
-        description = md("**Description**"),
-        coefficients = md("**Coefficients**"),
-        std_values = md("**Ecart Type**"),
-        pvalues = md("**Pvalues**"),
-        significativite = md("**Significativité**")
-    ) |>
-    fmt_markdown(columns = c(names, description, significativite)) |>
-    fmt_number(columns = c(coefficients, pvalues), decimals = 3) |>
-    fmt(columns = std_values, fns = function(std) {
-        paste("+/-", round(std, 3))
-    }) |>
-    # data_color(columns = coefficients) |>
-    tab_footnote(footnote = md(sprintf("*Observations* : %s", n))) |>
-    tab_footnote(footnote = md("***")) |>
-    tab_footnote(footnote = md(sprintf("$R^2=$ %s", r2))) |>
-    tab_footnote(footnote = md(sprintf("$R^2_{adj}=$ %s", adj_r2))) |>
-    tab_header(
-        title = md("**Fonction de production Cobb-Douglas**"),
-        subtitle = md("Variable dépendante : *qOut*")
-    ) |>
-    tab_options(
-        table.background.color = bg_color
-    )
-```
-
 
 ```{r}
 # Estime une fonction Cobb Douglas avec l'argument linear
@@ -307,65 +309,6 @@ cd_prod <- translogEst(
     linear = TRUE
 )
 ```
-
-```{r}
-makestars <- function(pvalues) {
-    return(
-        dplyr::case_when(
-            pvalues < 0.001 ~ "$***$",
-            pvalues < 0.05 ~ "$**$",
-            pvalues < 0.1 ~ "$*$",
-            .default = ""
-        )
-    )
-}
-
-
-gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) {
-    coefficients <- summary(model)$coefTable[1:n_coef, 1]
-    std_values <- summary(model)$coefTable[1:n_coef, 2]
-    pvalues <- summary(model)$coefTable[1:n_coef, 4]
-    signif <- makestars(pvalues)
-    r2 <- round(summary(model)$r2, 3)
-    adj_r2 <- round(summary(model)$r2bar, 3)
-    n <- summary(model)$nObs
-    dep_variable <- summary(model)$yName
-    coefnames <- coefnames
-    description <- description
-    reg_results <- data.frame(cbind(coefnames, description, coefficients, std_values, pvalues, signif)) |>
-        tibble() |>
-        mutate(across(c(coefficients, std_values, pvalues), as.numeric))
-
-    table <- reg_results |>
-        gt(rowname_col = "coefnames") |>
-        cols_label(
-            description = md("**Description**"),
-            coefficients = md("**Coefficients**"),
-            std_values = md("**Ecart Type**"),
-            pvalues = md("**Pvalues**"),
-            signif = md("**Significativité**")
-        ) |>
-        fmt_markdown(columns = c(coefnames, signif, description)) |>
-        fmt_number(columns = c(coefficients, pvalues), decimals = 3) |>
-        fmt(columns = std_values, fns = function(std) {
-            paste("+/-", round(std, 3))
-        }) |>
-        tab_footnote(footnote = md(sprintf("*Observations* : %s", n))) |>
-        tab_footnote(footnote = md("***")) |>
-        tab_footnote(footnote = md(sprintf("$R^2=$ %s", r2))) |>
-        tab_footnote(footnote = md(sprintf("$R^2_{adj}=$ %s", adj_r2))) |>
-        tab_header(
-            title = md(title),
-            subtitle = md(sprintf("Variable dépendante : *%s*", dep_variable))
-        ) |>
-        tab_options(
-            table.background.color = bg_color
-        )
-
-    return(table)
-}
-```
-
 
 ```{r}
 gtgazer(
