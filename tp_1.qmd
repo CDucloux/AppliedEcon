@@ -42,7 +42,7 @@ crossref:
     eq-prefix: équation
     tbl-prefix: Tableau
 editor_options: 
-  chunk_output_type: console
+    chunk_output_type: console
 ---
 
 ```{css, echo=FALSE}
@@ -115,6 +115,13 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 ```
 
 ## Imports
+
+:::{.callout-note}
+
+Tout au long de ce projet, nous utiliserons l'approche `tidy` développée par @wickham2014 plutôt que l'approche `base R` pour manipuler nos données.
+
+:::
+
 
 ```{r}
 #| label: lib_imports
@@ -220,105 +227,111 @@ apples |>
 
 ## Statistiques descriptives
 
-### Productivités moyennes des facteurs de production 
+### Productivités moyenne des facteurs de production 
 
-*Pas sûr...*
+La productivité moyenne ($AP =$ **Average Product**) consiste à diviser la quantité totale d'output par la quantité totale de facteur utilisé *(input)* dans le processus de production.
+
+Nous obtenons alors respectivement :
+
+- $AP_{Cap} = \frac{q_{Out}}{q_{Cap}}$
+
+- $AP_{Lab} = \frac{q_{Out}}{q_{Lab}}$
+
+- $AP_{Mat} = \frac{q_{Out}}{q_{Mat}}$
+
 
 ```{r}
-prodCap <- (apples$qCap / apples$vCap)
-prodLab <- (apples$qLab / apples$vLab)
-prodMat <- (apples$qMat / apples$vMat)
+#| label: productivites
+apples <- apples |> mutate(
+    AP_Cap = qOut / qCap,
+    AP_Lab = qOut / qLab,
+    AP_Mat = qOut / qMat
+)
 
-prodQCap <- (apples$qOut / apples$vCap)
-prodQLab <- (apples$qOut / apples$vLab)
-prodQMat <- (apples$qOut / apples$vMat)
+apples |> summarise(mean_AP_Cap = mean(AP_Cap))
+apples |> summarise(mean_AP_Lab = mean(AP_Lab))
+apples |> summarise(mean_AP_Mat = mean(AP_Mat))
+```
+
+[Ajouter aussi le min/max en plus de la moyenne]{style="color:red;"}
+
+- La productivité moyenne du travail mesure la productivité de la main d’œuvre de la firme en termes de combien chaque travailleur produit en moyenne par mois.
+
+**EXPLIQUER POUR CHAQUE input** $\Rightarrow$ imaginons que les unités sont des tonnes (combien de tonnes sont produites par unité de travail, capital, etc.)
+
+```{r}
+apples |>
+    ggplot() +
+    aes(x = AP_Cap) +
+    geom_histogram(binwidth = 1.25, fill = "royalblue", alpha = 0.7) +
+    labs(title = "Productivité Moyenne du Capital", x = "Productivité", y = "Fréquence")
 ```
 
 ```{r}
-apples |> 
-  ggplot() +
-  aes(x = prodCap) +
-  geom_histogram(binwidth = 0.1, fill = "royalblue", alpha = 0.7) +
-  labs(title = "Productivité du Capital", x = "Productivité", y = "Fréquence")
+apples |>
+    ggplot() +
+    aes(x = AP_Lab) +
+    geom_histogram(binwidth = 0.75, fill = "darkgreen", alpha = 0.7) +
+    labs(title = "Productivité Moyenne du Travail", x = "Productivité", y = "Fréquence")
 ```
 
 ```{r}
-apples |> 
-  ggplot() +
-  aes(x = prodLab) +
-  geom_histogram(binwidth = 0.05, fill = "darkgreen", alpha = 0.7) +
-  labs(title = "Productivité du Travail", x = "Productivité", y = "Fréquence")
-```
-
-```{r}
-apples |> 
-  ggplot() +
-  aes(x = prodMat) +
-  geom_histogram(binwidth = 0.01, fill = "darkorchid", alpha = 0.7) +
-  labs(title = "Productivité des matériaux", x = "Productivité", y = "Fréquence")
+apples |>
+    ggplot() +
+    aes(x = AP_Mat) +
+    geom_histogram(binwidth = 1.25, fill = "darkorchid", alpha = 0.7) +
+    labs(title = "Productivité Moyenne des matériaux", x = "Productivité", y = "Fréquence")
 ```
 
 ### Corrélations entre les quantités des 3 facteurs de production
 
 ```{r}
-apples |> 
-  select(qCap, qMat, qLab) |> 
-  cor() |> 
-  round(2) |> 
-  data.frame() |> 
-  gt() |> 
-  tab_header("Matrice de corrélation")
+apples |>
+    select(starts_with("AP")) |>
+    cor() |>
+    round(2) |>
+    data.frame() |>
+    gt() |>
+    tab_header("Matrice de corrélation")
 ```
 
-### Matrice des corrélations
-
-```{r}
-apples_num <- apples |>
-    select(-N)
-
-cor <- apples_num |> cor()
-
-fig <- plot_ly(
-    x = colnames(apples_num), y = colnames(apples_num),
-    z = cor, type = "heatmap", colors = "Greys"
-)
-fig
-```
 
 ### Productivités moyennes
 
-```{r}
-CL <- apples |> 
-  ggplot()+
-  aes(x = prodCap, y = prodLab)+
-  geom_point()
-ML <- apples |> 
-  ggplot()+
-  aes(x = prodMat, y = prodLab)+
-  geom_point()
-CM <- apples |> 
-  ggplot()+
-  aes(x = prodCap, y = prodMat)+
-  geom_point()
+$\Rightarrow$ Idée : Faire des régressions linéaires sur ces graphs. étudier la relation.
 
-CL+ML+CM
+```{r}
+CL <- apples |>
+    ggplot() +
+    aes(x = AP_Cap, y = AP_Lab) +
+    geom_point()
+ML <- apples |>
+    ggplot() +
+    aes(x = AP_Mat, y = AP_Lab) +
+    geom_point()
+CM <- apples |>
+    ggplot() +
+    aes(x = AP_Cap, y = AP_Mat) +
+    geom_point()
+
+CL + ML + CM
 ```
 
 ```{r}
-QC <- apples |> 
-  ggplot()+
-  aes(y = prodQCap, x = prodCap)+
-  geom_point()
-QL <- apples |> 
-  ggplot()+
-  aes(y = prodQLab, x = prodLab)+
-  geom_point()
-QM <- apples |> 
-  ggplot()+
-  aes(y = prodQMat, x = prodMat)+
-  geom_point()
+QC <- apples |>
+    ggplot() +
+    aes(y = qOut, x = AP_Cap) +
+    geom_point()
+QL <- apples |>
+    ggplot() +
+    aes(y = qOut, x = AP_Lab) +
+    geom_point()
+QM <- apples |>
+    ggplot() +
+    aes(y = qOut, x = AP_Mat) +
+    geom_point()
 
-QC+QL+QM
+QC + QL + QM
 ```
 
 ### Paasche ou Laspeyeres ou Fisher
@@ -330,21 +343,21 @@ apples$prod_global <- (apples$qOut) / (apples$vCap + apples$vLab + apples$vMat)
 ```
 
 ```{r}
-apples |> 
-  ggplot()+
-  aes(x = prod_global)+
-  geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7)+
-  labs(title = "Productivité global", x = "Productivité", y = "Fréquence")
+apples |>
+    ggplot() +
+    aes(x = prod_global) +
+    geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7) +
+    labs(title = "Productivité global", x = "Productivité", y = "Fréquence")
 ```
 
 ```{r}
-apples |> 
-  ggplot()+
-  aes(x = prod_global, fill = as.factor(adv))+
-  geom_boxplot()+
-  coord_flip()+
-  labs(title = "Productivité global en fonction conseil ou non")+
-  theme(legend.position = "None")
+apples |>
+    ggplot() +
+    aes(x = prod_global, fill = as.factor(adv)) +
+    geom_boxplot() +
+    coord_flip() +
+    labs(title = "Productivité global en fonction conseil ou non") +
+    theme(legend.position = "None")
 ```
 
 
