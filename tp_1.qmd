@@ -246,6 +246,67 @@ fig <- fig %>% layout(
 fig
 ```
 
+
+### Infos sur le sujet
+$$
+Q = f(QCAP, QLAB, QMAT)\\
+$$
+
+il y a aussi les infos sur $C(Q)$
+
+Comparer les productivités des facteurs. (graphiquement) - imaginons que les unités sont des tonnes (combien de tonnes sont produites par unité de travail, capital, etc.)
+
+Comment ces productivités individuelles sont corrélées (entre QCAP, QLAB, QMAT) 
+
+- Indice de Paasche
+- Indice de Laspeyres
+- Indice de Fisher
+
+Expliquer les différences de profits entre les producteurs ? Regarder du coté des fonctions de profit.
+
+Propriété de la CD => si la fonction de prod est cobb douglas, alors la fonction de coût l'est aussi.
+
+alpha y => mesure des rendements d'échelle...
+
+Pour la question 7, o nintègre la quantité d'inputs comme variable explicative => fonction de cout de court terme
+
+Fonction de cout qui intègre que la quantité de capital ne change pas instantanément
+
+
+Rendements d'échelle (somme des exposants) => on peut trouver ces rendements d'échelle soit en faisant la fonction de coût, ou la fonction de production. Mais on peut aussi les estimer grace à une fonction de demande
+
+**DEUX CHOSES ESSENTIELLES**
+
+
+- Il faut estimer les substitutions entre facteurs
+- Les rendements d'échelle
+
+
+Dans la cobb douglas les substitutions entre facteurs il est constant et c'est 1.
+
+Regarder le $\prod$
+
+
+### Notes sur la translog Cost
+
+On pourrait tt à fait estimer le système d'équations suivant :
+
+Voir aussi la slide 78 sur la fonction $\ln C$
+
+$$
+\begin{cases}
+S_1 = \alpha_1 + \sum^3_{i=1} \beta_{1j}\ln p_j + \beta_{1y}\ln y\\
+S_2 = \alpha_2 + \sum^3_{i=1} \beta_{2j}\ln p_j + \beta_{2y}\ln y\\
+S_3 = \alpha_3 + \sum^3_{i=1} \beta_{3j}\ln p_j + \beta_{3y}\ln y
+\end{cases}
+$$
+
+Inconvénients dans la translog et des formes flexibles : 
+
+Le nombre de paramètres explose à cause des effets croisés et risque important de collinéarité.
+
+Quand on passe au système au tableau, on a augmenté à 3*140 données (420 observations) et on a un peu moins de paramètres
+
 ```{r}
 apples |>
     select(qApples, adv) |>
@@ -301,13 +362,24 @@ $$
 
 
 ```{r}
-# Estime une fonction Cobb Douglas avec l'argument linear
+# Estime une fonction de production Cobb Douglas avec l'argument linear
 cd_prod <- translogEst(
     "qOut",
     c("qCap", "qLab", "qMat"),
     apples,
     linear = TRUE
 )
+
+quad_prod <- quadFuncEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    apples
+)
+
+summary(quad_prod$est)
+
+elasticities(cd_prod)
+elasticities(quad_prod)
 ```
 
 ```{r}
