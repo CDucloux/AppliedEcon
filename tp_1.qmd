@@ -38,10 +38,11 @@ code-block-bg: "#F1F3F5"
 code-block-border-left: "#d9230f"
 license: "CC BY-SA"
 bibliography: references.bib
-
 crossref:
     eq-prefix: équation
     tbl-prefix: Tableau
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{css, echo=FALSE}
@@ -127,6 +128,7 @@ library(gt)
 library(tibble)
 library(knitr)
 library(plotly)
+library(patchwork)
 ```
 
 ```{r}
@@ -216,9 +218,59 @@ apples |>
     )
 ```
 
-## Analyse exploratoire
+## Statistiques descriptives
 
-**ACP à faire ?** pourrait être intéressant
+### Productivités moyennes des facteurs de production 
+
+*Pas sûr...*
+
+```{r}
+prodCap <- (apples$qCap / apples$vCap)
+prodLab <- (apples$qLab / apples$vLab)
+prodMat <- (apples$qMat / apples$vMat)
+
+prodQCap <- (apples$qOut / apples$vCap)
+prodQLab <- (apples$qOut / apples$vLab)
+prodQMat <- (apples$qOut / apples$vMat)
+```
+
+```{r}
+apples |> 
+  ggplot() +
+  aes(x = prodCap) +
+  geom_histogram(binwidth = 0.1, fill = "royalblue", alpha = 0.7) +
+  labs(title = "Productivité du Capital", x = "Productivité", y = "Fréquence")
+```
+
+```{r}
+apples |> 
+  ggplot() +
+  aes(x = prodLab) +
+  geom_histogram(binwidth = 0.05, fill = "darkgreen", alpha = 0.7) +
+  labs(title = "Productivité du Travail", x = "Productivité", y = "Fréquence")
+```
+
+```{r}
+apples |> 
+  ggplot() +
+  aes(x = prodMat) +
+  geom_histogram(binwidth = 0.01, fill = "darkorchid", alpha = 0.7) +
+  labs(title = "Productivité des matériaux", x = "Productivité", y = "Fréquence")
+```
+
+### Corrélations entre les quantités des 3 facteurs de production
+
+```{r}
+apples |> 
+  select(qCap, qMat, qLab) |> 
+  cor() |> 
+  round(2) |> 
+  data.frame() |> 
+  gt() |> 
+  tab_header("Matrice de corrélation")
+```
+
+### Matrice des corrélations
 
 ```{r}
 apples_num <- apples |>
@@ -231,6 +283,82 @@ fig <- plot_ly(
     z = cor, type = "heatmap", colors = "Greys"
 )
 fig
+```
+
+### Productivités moyennes
+
+```{r}
+CL <- apples |> 
+  ggplot()+
+  aes(x = prodCap, y = prodLab)+
+  geom_point()
+ML <- apples |> 
+  ggplot()+
+  aes(x = prodMat, y = prodLab)+
+  geom_point()
+CM <- apples |> 
+  ggplot()+
+  aes(x = prodCap, y = prodMat)+
+  geom_point()
+
+CL+ML+CM
+```
+
+```{r}
+QC <- apples |> 
+  ggplot()+
+  aes(y = prodQCap, x = prodCap)+
+  geom_point()
+QL <- apples |> 
+  ggplot()+
+  aes(y = prodQLab, x = prodLab)+
+  geom_point()
+QM <- apples |> 
+  ggplot()+
+  aes(y = prodQMat, x = prodMat)+
+  geom_point()
+
+QC+QL+QM
+```
+
+### Paasche ou Laspeyeres ou Fisher
+
+### Indice de productivité globale des facteurs
+
+```{r}
+apples$prod_global <- (apples$qOut) / (apples$vCap + apples$vLab + apples$vMat)
+```
+
+```{r}
+apples |> 
+  ggplot()+
+  aes(x = prod_global)+
+  geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7)+
+  labs(title = "Productivité global", x = "Productivité", y = "Fréquence")
+```
+
+```{r}
+apples |> 
+  ggplot()+
+  aes(x = prod_global, fill = as.factor(adv))+
+  geom_boxplot()+
+  coord_flip()+
+  labs(title = "Productivité global en fonction conseil ou non")+
+  theme(legend.position = "None")
+```
+
+
+
+
+## Analyse exploratoire
+
+**ACP à faire ?** pourrait être intéressant
+
+```{r}
+apples_num <- apples |>
+    select(-N)
+
+cor <- apples_num |> cor()
 
 fig <- plot_ly(x = apples$vCap, type = "histogram", nbinsx = 30, alpha = 0.6)
 fig
