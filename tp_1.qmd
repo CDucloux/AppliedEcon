@@ -114,11 +114,11 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 }
 ```
 
-## Imports
+## Imports et configuration
 
 :::{.callout-note}
 
-Tout au long de ce projet, nous utiliserons l'approche `tidy` développée par @wickham2014 plutôt que l'approche `base R` pour manipuler nos données.
+Tout au long de ce projet, nous utiliserons l'approche [`tidy`](https://www.tidyverse.org/) développée par @wickham2014 plutôt que l'approche `base R` pour manipuler nos données.
 
 :::
 
@@ -136,11 +136,18 @@ library(tibble)
 library(knitr)
 library(plotly)
 library(patchwork)
+library(showtext)
 ```
 
 ```{r}
 #| label : colors
 bg_color <- "#FCFCFC"
+alpha <- 0.7
+```
+
+```{r}
+theme_set(theme_minimal())
+thematic::thematic_on(bg = "#FCFCFC", fg = "black", accent = "purple", font = "PT Sans")
 ```
 
 ## Description des données
@@ -227,9 +234,11 @@ apples |>
 
 ## Statistiques descriptives
 
-### Productivités moyenne des facteurs de production 
+### Productivité moyenne des facteurs de production 
 
 La productivité moyenne ($AP =$ **Average Product**) consiste à diviser la quantité totale d'output par la quantité totale de facteur utilisé *(input)* dans le processus de production.
+
+Imaginons que les unités d'output sont des tonnes. Pour chaque input, cela revient en fait à expliquer combien de tonnes sont produites par unité de capital, de travail et de matières intermédiaires en 1986 pour chaque producteur de pommes.
 
 Nous obtenons alors respectivement :
 
@@ -247,40 +256,50 @@ apples <- apples |> mutate(
     AP_Lab = qOut / qLab,
     AP_Mat = qOut / qMat
 )
-
-apples |> summarise(mean_AP_Cap = mean(AP_Cap))
-apples |> summarise(mean_AP_Lab = mean(AP_Lab))
-apples |> summarise(mean_AP_Mat = mean(AP_Mat))
 ```
 
-[Ajouter aussi le min/max en plus de la moyenne]{style="color:red;"}
+```{r}
 
-- La productivité moyenne du travail mesure la productivité de la main d’œuvre de la firme en termes de combien chaque travailleur produit en moyenne par mois.
+tibble_AP_Cap <- apples |> summarise(min = min(AP_Cap), mean = mean(AP_Cap), max = max(AP_Cap), std = sd(AP_Cap)) |> add_column(type = "$AP_{Cap}$", .before = "min")
+tibble_AP_Lab <- apples |> summarise(min = min(AP_Lab), mean = mean(AP_Lab), max = max(AP_Lab), std = sd(AP_Lab)) |> add_column(type = "$AP_{Lab}$", .before = "min")
+tibble_AP_Mat <- apples |> summarise(min = min(AP_Mat), mean = mean(AP_Mat), max = max(AP_Mat), std = sd(AP_Mat)) |> add_column(type = "$AP_{Mat}$", .before = "min")
 
-**EXPLIQUER POUR CHAQUE input** $\Rightarrow$ imaginons que les unités sont des tonnes (combien de tonnes sont produites par unité de travail, capital, etc.)
+AP_table <- bind_rows(tibble_AP_Cap, tibble_AP_Lab, tibble_AP_Mat)
+
+AP_table |> gt() |> fmt_markdown(columns = type) |> fmt_number(columns = c(-type)) |> tab_header(
+        title = md("**Productivité Moyenne par Facteur 📋**"),
+        subtitle = md("*Capital --- Travail --- Matériaux*")
+    ) 
+```
+
+[done 💅]{style="color:red;"}
+
+Ce tableau, en plus des visualisations qui vont suivre, permet d'établir que les productivités moyennes par facteur sont **très différentes selon les producteurs**. De plus, on s'aperçoit aussi qu'investir dans un facteur particulier peut être plus intéressant qu'un autre. 
+
+C'est particulièrement vrai pour le facteur `Mat` avec une productivité moyenne minimale de **8.22** unités d'output pour une unité de matériaux et jusqu'à **301.43** unités d'output pour une unité de matériaux.
 
 ```{r}
 apples |>
     ggplot() +
     aes(x = AP_Cap) +
-    geom_histogram(binwidth = 1.25, fill = "royalblue", alpha = 0.7) +
-    labs(title = "Productivité Moyenne du Capital", x = "Productivité", y = "Fréquence")
+    geom_histogram(binwidth = 1.25, fill = "darkgreen", alpha = alpha) +
+    labs(title = "Productivité Moyenne du Capital", subtitle = "Pour une unité de capital, combien d'unités d'output sont produits ?", x = "", y = "Fréquence")
 ```
 
 ```{r}
 apples |>
     ggplot() +
     aes(x = AP_Lab) +
-    geom_histogram(binwidth = 0.75, fill = "darkgreen", alpha = 0.7) +
-    labs(title = "Productivité Moyenne du Travail", x = "Productivité", y = "Fréquence")
+    geom_histogram(binwidth = 0.75, fill = "orange", alpha = alpha) +
+    labs(title = "Productivité Moyenne du Travail", subtitle = "Pour une unité de travail, combien d'unités d'output sont produits ?", x = "", y = "Fréquence")
 ```
 
 ```{r}
 apples |>
     ggplot() +
     aes(x = AP_Mat) +
-    geom_histogram(binwidth = 1.25, fill = "darkorchid", alpha = 0.7) +
-    labs(title = "Productivité Moyenne des matériaux", x = "Productivité", y = "Fréquence")
+    geom_histogram(binwidth = 1.5, fill = "darkorchid", alpha = alpha) +
+    labs(title = "Productivité Moyenne des matériaux", subtitle = "Pour une unité de matériaux, combien d'unités d'output sont produits ?", x = "", y = "Fréquence")
 ```
 
 ### Corrélations entre les quantités des 3 facteurs de production
@@ -295,72 +314,94 @@ apples |>
     tab_header("Matrice de corrélation")
 ```
 
+### Représentation graphique des relations entre les productivités moyennes
 
-### Productivités moyennes
-
-$\Rightarrow$ Idée : Faire des régressions linéaires sur ces graphs. étudier la relation.
+$\Rightarrow$ Idée : Faire des régressions linéaires sur ces graphs. étudier la relation. Normalement on devrait retrouver les coefs de la matrice de corrélation. On voit aussi que pour le 2e graph il y a une belle relation linéaire.
 
 ```{r}
 CL <- apples |>
     ggplot() +
     aes(x = AP_Cap, y = AP_Lab) +
-    geom_point()
+    geom_point(colour = "slategray", alpha = alpha)
 ML <- apples |>
     ggplot() +
     aes(x = AP_Mat, y = AP_Lab) +
-    geom_point()
+    geom_point(colour = "gray", alpha = alpha)
 CM <- apples |>
     ggplot() +
     aes(x = AP_Cap, y = AP_Mat) +
-    geom_point()
+    geom_point(colour = "gray21", alpha = alpha)
 
-CL + ML + CM
+prod_plots <- (CL + ML) / CM
+
+prod_plots + plot_annotation(
+    title = "Croisement des productivités moyennes",
+    subtitle = "Quelles sont les relations existantes entre les différentes productivités moyennes ?",
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+)
 ```
+
 
 ```{r}
 QC <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Cap) +
-    geom_point()
+    geom_point(colour = "darkgreen", alpha = alpha) + 
+    labs(y = "") + 
+    theme(axis.text.y = element_blank(), axis.ticks = element_blank())
 QL <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Lab) +
-    geom_point()
+    geom_point(colour = "orange", alpha = alpha) + 
+    labs(y = "") +
+    theme(axis.text.y = element_blank(), axis.ticks = element_blank())
 QM <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Mat) +
-    geom_point()
+    geom_point(colour = "darkorchid", alpha = alpha) + 
+    labs(y = "") +
+    theme(axis.text.y = element_blank(), axis.ticks = element_blank())
 
-QC + QL + QM
+qOut_prod_plots <- (QC + QL) / QM
+
+qOut_prod_plots + plot_annotation(
+    title = "Productivité moyenne par rapport à l'output total",
+    subtitle = "Quelles sont les relations existantes entre les productivités moyennes des inputs et de l'output ?",
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+)
 ```
 
 ### Paasche ou Laspeyeres ou Fisher
 
 ### Indice de productivité globale des facteurs
 
+$$
+GP = \frac{q_{Out}}{q_{Cap} + q_{Lab} + q_{Mat}}
+$$
+
 ```{r}
-apples$prod_global <- (apples$qOut) / (apples$vCap + apples$vLab + apples$vMat)
+apples <- apples |> mutate(global_prod = qOut / (qCap + qLab + qMat))
+
+apples |> select(global_prod)
 ```
 
 ```{r}
 apples |>
     ggplot() +
-    aes(x = prod_global) +
+    aes(x = global_prod) +
     geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7) +
-    labs(title = "Productivité global", x = "Productivité", y = "Fréquence")
+    labs(title = "Productivité globale", x = "Productivité", y = "Fréquence")
 ```
 
 ```{r}
 apples |>
     ggplot() +
-    aes(x = prod_global, fill = as.factor(adv)) +
+    aes(x = global_prod, fill = as.factor(adv)) +
     geom_boxplot() +
     coord_flip() +
-    labs(title = "Productivité global en fonction conseil ou non") +
+    labs(title = "Productivité globale en fonction conseil ou non") +
     theme(legend.position = "None")
 ```
-
-
 
 
 ## Analyse exploratoire
@@ -519,8 +560,8 @@ quad_prod <- quadFuncEst(
 
 summary(quad_prod$est)
 
-elasticities(cd_prod)
-elasticities(quad_prod)
+#elasticities(cd_prod)
+#elasticities(quad_prod)
 ```
 
 ```{r}
