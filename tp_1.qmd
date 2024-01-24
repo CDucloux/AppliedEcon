@@ -260,19 +260,27 @@ apples <- apples |> mutate(
 
 ```{r}
 
-tibble_AP_Cap <- apples |> summarise(min = min(AP_Cap), mean = mean(AP_Cap), max = max(AP_Cap), std = sd(AP_Cap)) |> add_column(type = "$AP_{Cap}$", .before = "min")
-tibble_AP_Lab <- apples |> summarise(min = min(AP_Lab), mean = mean(AP_Lab), max = max(AP_Lab), std = sd(AP_Lab)) |> add_column(type = "$AP_{Lab}$", .before = "min")
-tibble_AP_Mat <- apples |> summarise(min = min(AP_Mat), mean = mean(AP_Mat), max = max(AP_Mat), std = sd(AP_Mat)) |> add_column(type = "$AP_{Mat}$", .before = "min")
+tibble_AP_Cap <- apples |>
+    summarise(min = min(AP_Cap), mean = mean(AP_Cap), max = max(AP_Cap), std = sd(AP_Cap)) |>
+    add_column(type = "$AP_{Cap}$", .before = "min")
+tibble_AP_Lab <- apples |>
+    summarise(min = min(AP_Lab), mean = mean(AP_Lab), max = max(AP_Lab), std = sd(AP_Lab)) |>
+    add_column(type = "$AP_{Lab}$", .before = "min")
+tibble_AP_Mat <- apples |>
+    summarise(min = min(AP_Mat), mean = mean(AP_Mat), max = max(AP_Mat), std = sd(AP_Mat)) |>
+    add_column(type = "$AP_{Mat}$", .before = "min")
 
 AP_table <- bind_rows(tibble_AP_Cap, tibble_AP_Lab, tibble_AP_Mat)
 
-AP_table |> gt() |> fmt_markdown(columns = type) |> fmt_number(columns = c(-type)) |> tab_header(
+AP_table |>
+    gt() |>
+    fmt_markdown(columns = type) |>
+    fmt_number(columns = c(-type)) |>
+    tab_header(
         title = md("**Productivité Moyenne par Facteur 📋**"),
         subtitle = md("*Capital --- Travail --- Matériaux*")
-    ) 
+    )
 ```
-
-[done 💅]{style="color:red;"}
 
 Ce tableau, en plus des visualisations qui vont suivre, permet d'établir que les productivités moyennes par facteur sont **très différentes selon les producteurs**. De plus, on s'aperçoit aussi qu'investir dans un facteur particulier peut être plus intéressant qu'un autre. 
 
@@ -306,7 +314,7 @@ apples |>
 
 ```{r}
 apples |>
-    select(starts_with("AP")) |>
+    select(qCap, qLab, qMat) |>
     cor() |>
     round(2) |>
     data.frame() |>
@@ -314,7 +322,17 @@ apples |>
     tab_header("Matrice de corrélation")
 ```
 
-### Représentation graphique des relations entre les productivités moyennes
+### Corrélations entre les productivités moyennes
+
+```{r}
+apples |>
+    select(starts_with("AP")) |>
+    cor() |>
+    round(2) |>
+    data.frame() |>
+    gt() |>
+    tab_header("Matrice de corrélation")
+```
 
 $\Rightarrow$ Idée : Faire des régressions linéaires sur ces graphs. étudier la relation. Normalement on devrait retrouver les coefs de la matrice de corrélation. On voit aussi que pour le 2e graph il y a une belle relation linéaire.
 
@@ -346,19 +364,19 @@ prod_plots + plot_annotation(
 QC <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Cap) +
-    geom_point(colour = "darkgreen", alpha = alpha) + 
-    labs(y = "") + 
+    geom_point(colour = "darkgreen", alpha = alpha) +
+    labs(y = "") +
     theme(axis.text.y = element_blank(), axis.ticks = element_blank())
 QL <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Lab) +
-    geom_point(colour = "orange", alpha = alpha) + 
+    geom_point(colour = "orange", alpha = alpha) +
     labs(y = "") +
     theme(axis.text.y = element_blank(), axis.ticks = element_blank())
 QM <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Mat) +
-    geom_point(colour = "darkorchid", alpha = alpha) + 
+    geom_point(colour = "darkorchid", alpha = alpha) +
     labs(y = "") +
     theme(axis.text.y = element_blank(), axis.ticks = element_blank())
 
@@ -560,8 +578,8 @@ quad_prod <- quadFuncEst(
 
 summary(quad_prod$est)
 
-#elasticities(cd_prod)
-#elasticities(quad_prod)
+# elasticities(cd_prod)
+# elasticities(quad_prod)
 ```
 
 ```{r}
@@ -604,3 +622,4 @@ cobbDouglasCalc(c("qCap", "qLab", "qMat"), apples, coef(cd_prod)[1:4], coefCov =
 ```
 
 
+[done 💅]{style="color:red;"}
