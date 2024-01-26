@@ -27,7 +27,7 @@ format:
         fontsize: 1em
         embed-resources: true
         html-math-method: mathjax
-        code-fold: show
+        code-fold: true 
         anchor-sections: true
         smooth-scroll: true
         citations-hover: true
@@ -137,6 +137,9 @@ library(knitr)
 library(plotly)
 library(patchwork)
 library(showtext)
+library(FactoMineR)
+library(factoextra)
+library(ggtext)
 ```
 
 ```{r}
@@ -389,7 +392,19 @@ qOut_prod_plots + plot_annotation(
 )
 ```
 
+
+On a pu constater un lien indéniable entre la quantité produite (`qOut`) et les productivités moyennes. On peut alors légitimement penser qu'il y a une relation entre la quantité produite et les quantités des facteurs de production. On peut effectuer une régression linéaire pour observer cette relation.
+
+La relation linéaire est significative entre `qOut` et les variables explicatives `qMat` et `qLab.` Le $R^2$, supérieur à 0.78, démontre la bonne qualité de la régression. De ce modèle on peut dire que la quantité produite dépend principalement de la quanité de travail et de matière première engagé.
+
+```{r}
+reg_qOut_AP <- lm(qOut ~ qMat + qLab + qCap ,data = apples)
+stargazer(reg_qOut_AP, type = 'text')
+```
+
 ### Paasche ou Laspeyeres ou Fisher
+
+
 
 ### Indice de productivité globale des facteurs
 
@@ -424,27 +439,61 @@ apples |>
 
 ## Analyse exploratoire
 
-**ACP à faire ?** pourrait être intéressant
+L'ACP permet de constater qu'il y a une opposition entre le prix du capital et la quantité de capital, ce qui est économiquement trivial. De plus on observe un fort lien entre le prix du capital et le prix des outputs.
 
 ```{r}
-apples_num <- apples |>
-    select(-N)
+apples_acp <- apples[-c(96,129),-c(1, 16:19)]
+acp <- PCA(apples_acp, graph = FALSE)
 
-cor <- apples_num |> cor()
-
-fig <- plot_ly(x = apples$vCap, type = "histogram", nbinsx = 30, alpha = 0.6)
-fig
-
-fig <- plot_ly(alpha = 0.6, nbinsx = 50)
-fig <- fig %>% add_histogram(apples$vCap[apples$adv == 1], name = "advisory service")
-fig <- fig %>% add_histogram(apples$vCap[apples$adv == 0], name = "not advisory service")
-fig <- fig %>% layout(
-    barmode = "overlay",
-    yaxis = list(title = "Frequency"),
-    xaxis = list(title = "Values")
-)
-fig
+fviz_pca_biplot(acp,
+                repel = TRUE,
+                title = "ACP - Biplot",
+                label = "var",
+                col.var = "royalblue",
+                col.ind = "orange",
+                axes = c(1,2))
 ```
+
+```{r}
+apples |> 
+  ggplot() +
+  geom_histogram(aes(x = log(qOut)),
+                 alpha = 0.6,
+                 bins = 25,
+                 fill = "royalblue",
+                 color = "royalblue") +
+  labs(title = "Répartition de log(qOut)",
+       x = "Values",
+       y = "Frequency")
+```
+
+```{r}
+library(ggtext)
+apples |> 
+  ggplot()+
+  geom_density(aes(x = log(qOut)),
+               color = "royalblue",
+               linewidth = 1)+
+  stat_function(fun = dnorm,
+                args = list(
+                  mean = mean(log(apples$qOut)),
+                  sd = sd(log(apples$qOut))
+                ),
+                color = "darkred",
+                linewidth = 1)+
+  labs(x = "log()",
+       y = "Fréquence") + 
+  theme(plot.title = element_markdown(face = "bold", size = 15)) +
+  ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>")
+```
+
+> Le test de normalité rejette le fait que les données `qOut` suivent une distribution normale
+
+```{r}
+shapiro.test(apples$qOut)
+```
+
+
 
 
 ### Infos sur le sujet
