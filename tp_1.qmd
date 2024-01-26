@@ -455,24 +455,19 @@ fviz_pca_biplot(acp,
 ```
 
 ```{r}
+#https://r-charts.com/distribution/histogram-density-ggplot2/
 apples |> 
-  ggplot() +
-  geom_histogram(aes(x = log(qOut)),
+  ggplot(aes(x = log(qOut))) +
+  geom_histogram(aes(y = ..density..),
                  alpha = 0.6,
                  bins = 25,
                  fill = "royalblue",
                  color = "royalblue") +
-  labs(title = "Répartition de log(qOut)",
-       x = "Values",
-       y = "Frequency")
-```
-
-```{r}
-library(ggtext)
-apples |> 
-  ggplot()+
-  geom_density(aes(x = log(qOut)),
-               color = "royalblue",
+  labs(x = "log()",
+       y = "Fréquence") + 
+  theme(plot.title = element_markdown(face = "bold", size = 15)) +
+  ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>") +
+  geom_density(color = "royalblue",
                linewidth = 1)+
   stat_function(fun = dnorm,
                 args = list(
@@ -480,17 +475,13 @@ apples |>
                   sd = sd(log(apples$qOut))
                 ),
                 color = "darkred",
-                linewidth = 1)+
-  labs(x = "log()",
-       y = "Fréquence") + 
-  theme(plot.title = element_markdown(face = "bold", size = 15)) +
-  ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>")
+                linewidth = 1)
 ```
 
-> Le test de normalité rejette le fait que les données `qOut` suivent une distribution normale
+> Le test de normalité confirme statistiquement le fait que les données `log(qOut)` suivent une distribution normale (p.value > 0.05)
 
 ```{r}
-shapiro.test(apples$qOut)
+shapiro.test(log(apples$qOut))
 ```
 
 
