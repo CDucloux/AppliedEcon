@@ -140,6 +140,7 @@ library(showtext)
 library(FactoMineR)
 library(factoextra)
 library(ggtext)
+library(micEconIndex)
 ```
 
 ```{r}
@@ -327,6 +328,8 @@ apples |>
 
 ### Corrélations entre les productivités moyennes
 
+Essayons de comprendre comment les productivités moyennes individuelles sont corrélées :
+
 ```{r}
 apples |>
     select(starts_with("AP")) |>
@@ -336,8 +339,6 @@ apples |>
     gt() |>
     tab_header("Matrice de corrélation")
 ```
-
-$\Rightarrow$ Idée : Faire des régressions linéaires sur ces graphs. étudier la relation. Normalement on devrait retrouver les coefs de la matrice de corrélation. On voit aussi que pour le 2e graph il y a une belle relation linéaire.
 
 ```{r}
 CL <- apples |>
@@ -368,20 +369,17 @@ QC <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Cap) +
     geom_point(colour = "darkgreen", alpha = alpha) +
-    labs(y = "") +
-    theme(axis.text.y = element_blank(), axis.ticks = element_blank())
+    labs(y = "")
 QL <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Lab) +
     geom_point(colour = "orange", alpha = alpha) +
-    labs(y = "") +
-    theme(axis.text.y = element_blank(), axis.ticks = element_blank())
+    labs(y = "")
 QM <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Mat) +
     geom_point(colour = "darkorchid", alpha = alpha) +
-    labs(y = "") +
-    theme(axis.text.y = element_blank(), axis.ticks = element_blank())
+    labs(y = "")
 
 qOut_prod_plots <- (QC + QL) / QM
 
@@ -393,35 +391,75 @@ qOut_prod_plots + plot_annotation(
 ```
 
 
-On a pu constater un lien indéniable entre la quantité produite (`qOut`) et les productivités moyennes. On peut alors légitimement penser qu'il y a une relation entre la quantité produite et les quantités des facteurs de production. On peut effectuer une régression linéaire pour observer cette relation.
+### Paasche ou Laspeyres ou Fisher
 
-La relation linéaire est significative entre `qOut` et les variables explicatives `qMat` et `qLab.` Le $R^2$, supérieur à 0.78, démontre la bonne qualité de la régression. De ce modèle on peut dire que la quantité produite dépend principalement de la quanité de travail et de matière première engagé.
+Les productivités moyennes nous donnent une indication facteur par facteur, mais elles ne nous donnent pas nécessairement d'information **globale**. Dans ce cadre, on peut alors se demander comment agréger des quantités avec une règle ad-hoc en un indice synthétique.
+
+**3 Indices principaux existent**
+
+::: {.callout-tip}
+
+## Indice de *Paasche*
+
+$$
+\text{Paasche}_{index} = \frac{(v_{Cap} + v_{Lab} + v_{Mat})}{{\bar{q}_{Cap}}\cdot p_{Cap} + \bar{q}_{Lab}\cdot p_{Lab} + \bar{q}_{Mat} \cdot p_{Mat}}
+$$
+
+:::
+
+::: {.callout-tip}
+
+## Indice de *Laspeyres*
+
+$$
+\text{Laspeyres}_{index} = \frac{(q_{Cap} \cdot \bar{p}_{Cap} + q_{Lab} \cdot \bar{p}_{Lab} + q_{Mat} \cdot \bar{p}_{Mat})}{(\bar{q}_{Cap}\cdot \bar{p}_{Cap}+\bar{q}_{Lab}\cdot \bar{p}_{Lab}+\bar{q}_{Mat}\cdot \bar{p}_{Mat})}
+$$
+
+:::
+
+::: {.callout-tip}
+
+## Indice de *Fisher*
+
+$$
+\text{Fisher}_{index} = \sqrt{\text{Paasche}_{index} \cdot \text{Laspeyres}_{index}}
+$$
+
+:::
+
+De plus, la fonction `quantityIndex` du package `micEconIndex` a l'intérêt de facilement intégrer les calculs de chaque indice.
 
 ```{r}
-reg_qOut_AP <- lm(qOut ~ qMat + qLab + qCap ,data = apples)
-stargazer(reg_qOut_AP, type = 'text')
+apples <- apples |> mutate(
+    L_Index = quantityIndex(
+        prices = c("pCap", "pLab", "pMat"),
+        quantities = c("qCap", "qLab", "qMat"),
+        data = apples,
+        method = "Laspeyres"
+    ),
+    P_Index = quantityIndex(
+        prices = c("pCap", "pLab", "pMat"),
+        quantities = c("qCap", "qLab", "qMat"),
+        data = apples,
+        method = "Paasche"
+    ),
+    F_Index = quantityIndex(
+        prices = c("pCap", "pLab", "pMat"),
+        quantities = c("qCap", "qLab", "qMat"),
+        data = apples,
+        method = "Fisher"
+    )
+)
 ```
-
-### Paasche ou Laspeyeres ou Fisher
-
-
 
 ### Indice de productivité globale des facteurs
 
-$$
-GP = \frac{q_{Out}}{q_{Cap} + q_{Lab} + q_{Mat}}
-$$
-
-```{r}
-apples <- apples |> mutate(global_prod = qOut / (qCap + qLab + qMat))
-
-apples |> select(global_prod)
-```
+- Nous avons choisi en tant qu'indice de productivité globale des facteurs l'indice de *Fisher*, étant donné que c'est une moyenne géométrique de l'indice de *Paasche* et de celui de *Laspeyres*.
 
 ```{r}
 apples |>
     ggplot() +
-    aes(x = global_prod) +
+    aes(x = F_Index) +
     geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7) +
     labs(title = "Productivité globale", x = "Productivité", y = "Fréquence")
 ```
@@ -429,12 +467,68 @@ apples |>
 ```{r}
 apples |>
     ggplot() +
-    aes(x = global_prod, fill = as.factor(adv)) +
-    geom_boxplot() +
-    coord_flip() +
-    labs(title = "Productivité globale en fonction conseil ou non") +
-    theme(legend.position = "None")
+    aes(y = qOut, x = F_Index) +
+    geom_point(colour = "darkorchid", alpha = alpha) +
+    labs(title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "")
 ```
+
+```{r}
+apples <- apples |> mutate(
+    adv_chr = case_when(
+        adv == 0 ~ "No advice",
+        adv == 1 ~ "Advice",
+    )
+)
+
+apples |>
+    ggplot() +
+    aes(y = F_Index, x = adv_chr, fill = adv_chr) +
+    geom_boxplot() +
+    labs(title = "Productivité globale en fonction du conseil ou non d'un laboratoire", x = "", y = "") +
+    theme(legend.position = "None")
+
+apples_grouped <- apples |>
+    select(adv_chr, F_Index) |>
+    group_by(adv_chr) |>
+    summarise(mean = mean(F_Index))
+
+mean_advice <- apples_grouped |>
+    slice(1) |>
+    pull()
+
+mean_no_advice <- apples_grouped |>
+    slice(2) |>
+    pull()
+```
+
+- En moyenne, il n'y a pas de différence de productivité globale lorsque le producteur est conseillé. La productivité moyenne avec conseil est `r round(mean_advice,2)` et la productivité moyenne sans conseil est `r round(mean_no_advice,2)`.
+
+On peut aussi s'assurer que les moyennes sont significativement différentes en faisant un test de *Student* bilatéral :
+
+$$
+\begin{cases}
+H_0:\mu_{advice} =\mu_{no\_advice}\\
+H_1:\mu_{advice} \neq\mu_{no\_advice}
+\end{cases}
+$$
+
+
+```{r}
+advice <- apples |>
+    select(adv_chr, F_Index) |>
+    filter(adv_chr == "Advice") |>
+    pull()
+
+no_advice <- apples |>
+    select(adv_chr, F_Index) |>
+    filter(adv_chr == "No advice") |>
+    pull()
+
+t_test <- t.test(advice, no_advice, var.equal = F)
+pval_t_test <- t_test$p.value
+```
+
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value =$ `r  round(pval_t_test,2)` $> 0.05$, **on conserve donc l'hypothèse nulle $H_0$**.
 
 
 ## Analyse exploratoire
@@ -442,40 +536,48 @@ apples |>
 L'ACP permet de constater qu'il y a une opposition entre le prix du capital et la quantité de capital, ce qui est économiquement trivial. De plus on observe un fort lien entre le prix du capital et le prix des outputs.
 
 ```{r}
-apples_acp <- apples[-c(96,129),-c(1, 16:19)]
-acp <- PCA(apples_acp, graph = FALSE)
+# apples_acp <- apples[-c(96, 129), -c(1, 16:20)]
+# acp <- PCA(apples_acp, graph = FALSE)
 
-fviz_pca_biplot(acp,
-                repel = TRUE,
-                title = "ACP - Biplot",
-                label = "var",
-                col.var = "royalblue",
-                col.ind = "orange",
-                axes = c(1,2))
+# fviz_pca_biplot(acp,
+#    repel = TRUE,
+#    title = "ACP - Biplot",
+#    label = "var",
+#    col.var = "royalblue",
+#    col.ind = "orange",
+#    axes = c(1, 2)
+# )
 ```
 
 ```{r}
-#https://r-charts.com/distribution/histogram-density-ggplot2/
-apples |> 
-  ggplot(aes(x = log(qOut))) +
-  geom_histogram(aes(y = ..density..),
-                 alpha = 0.6,
-                 bins = 25,
-                 fill = "royalblue",
-                 color = "royalblue") +
-  labs(x = "log()",
-       y = "Fréquence") + 
-  theme(plot.title = element_markdown(face = "bold", size = 15)) +
-  ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>") +
-  geom_density(color = "royalblue",
-               linewidth = 1)+
-  stat_function(fun = dnorm,
-                args = list(
-                  mean = mean(log(apples$qOut)),
-                  sd = sd(log(apples$qOut))
-                ),
-                color = "darkred",
-                linewidth = 1)
+# https://r-charts.com/distribution/histogram-density-ggplot2/
+apples |>
+    ggplot(aes(x = log(qOut))) +
+    geom_histogram(aes(y = ..density..),
+        alpha = 0.6,
+        bins = 25,
+        fill = "royalblue",
+        color = "royalblue"
+    ) +
+    labs(
+        x = "log()",
+        y = "Fréquence"
+    ) +
+    theme(plot.title = element_markdown(face = "bold", size = 15)) +
+    ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>") +
+    geom_density(
+        color = "royalblue",
+        linewidth = 1
+    ) +
+    stat_function(
+        fun = dnorm,
+        args = list(
+            mean = mean(log(apples$qOut)),
+            sd = sd(log(apples$qOut))
+        ),
+        color = "darkred",
+        linewidth = 1
+    )
 ```
 
 > Le test de normalité confirme statistiquement le fait que les données `log(qOut)` suivent une distribution normale (p.value > 0.05)
@@ -484,74 +586,31 @@ apples |>
 shapiro.test(log(apples$qOut))
 ```
 
+## Fonction de production linéaire
 
+:::{.callout-tip}
 
-
-### Infos sur le sujet
-$$
-Q = f(QCAP, QLAB, QMAT)\\
-$$
-
-il y a aussi les infos sur $C(Q)$
-
-Comparer les productivités des facteurs. (graphiquement) - imaginons que les unités sont des tonnes (combien de tonnes sont produites par unité de travail, capital, etc.)
-
-Comment ces productivités individuelles sont corrélées (entre QCAP, QLAB, QMAT) 
-
-- Indice de Paasche
-- Indice de Laspeyres
-- Indice de Fisher
-
-Expliquer les différences de profits entre les producteurs ? Regarder du coté des fonctions de profit.
-
-Propriété de la CD => si la fonction de prod est cobb douglas, alors la fonction de coût l'est aussi.
-
-alpha y => mesure des rendements d'échelle...
-
-Pour la question 7, o nintègre la quantité d'inputs comme variable explicative => fonction de cout de court terme
-
-Fonction de cout qui intègre que la quantité de capital ne change pas instantanément
-
-
-Rendements d'échelle (somme des exposants) => on peut trouver ces rendements d'échelle soit en faisant la fonction de coût, ou la fonction de production. Mais on peut aussi les estimer grace à une fonction de demande
-
-**DEUX CHOSES ESSENTIELLES**
-
-
-- Il faut estimer les substitutions entre facteurs
-- Les rendements d'échelle
-
-
-Dans la cobb douglas les substitutions entre facteurs il est constant et c'est 1.
-
-Regarder le $\prod$
-
-
-### Notes sur la translog Cost
-
-On pourrait tt à fait estimer le système d'équations suivant :
-
-Voir aussi la slide 78 sur la fonction $\ln C$
+## Forme de la fonction
 
 $$
-\begin{cases}
-S_1 = \alpha_1 + \sum^3_{i=1} \beta_{1j}\ln p_j + \beta_{1y}\ln y\\
-S_2 = \alpha_2 + \sum^3_{i=1} \beta_{2j}\ln p_j + \beta_{2y}\ln y\\
-S_3 = \alpha_3 + \sum^3_{i=1} \beta_{3j}\ln p_j + \beta_{3y}\ln y
-\end{cases}
+q_i = \alpha + \sum_{k=1}^3\beta_k x_{ik} + \epsilon_i
 $$
 
-Inconvénients dans la translog et des formes flexibles : 
+- La **fonction de production linéaire** dans notre cas s'écrit donc sous la forme :
 
-Le nombre de paramètres explose à cause des effets croisés et risque important de collinéarité.
+$$
+q_{Out} = \alpha + \beta_1 q_{Cap} + \beta_2 q_{Lab} + \beta_3 q_{Mat} + \epsilon_i
+$$
 
-Quand on passe au système au tableau, on a augmenté à 3*140 données (420 observations) et on a un peu moins de paramètres
+:::
+
+On a pu constater un lien indéniable entre la quantité produite (`qOut`) et les productivités moyennes. On peut alors légitimement penser qu'il y a une relation entre la quantité produite et les quantités des facteurs de production. On peut effectuer une régression linéaire pour observer cette relation.
+
+La relation linéaire est significative entre `qOut` et les variables explicatives `qMat` et `qLab.` Le $R^2$, supérieur à 0.78, démontre la bonne qualité de la régression. De ce modèle on peut dire que la quantité produite dépend principalement de la quanité de travail et de matière première engagé.
 
 ```{r}
-apples |>
-    select(qApples, adv) |>
-    group_by(adv) |>
-    summarise(mean = mean(qApples))
+reg_qOut_AP <- lm(qOut ~ qMat + qLab + qCap, data = apples)
+stargazer(reg_qOut_AP, type = "text")
 ```
 
 ## Fonction Cobb-Douglas
@@ -600,6 +659,8 @@ H_1 : \alpha + \beta + \gamma \neq 1\\
 \end{cases}
 $$
 
+- Les entreprises les plus grosses sont les plus productives.
+
 
 ```{r}
 # Estime une fonction de production Cobb Douglas avec l'argument linear
@@ -609,14 +670,6 @@ cd_prod <- translogEst(
     apples,
     linear = TRUE
 )
-
-quad_prod <- quadFuncEst(
-    "qOut",
-    c("qCap", "qLab", "qMat"),
-    apples
-)
-
-summary(quad_prod$est)
 
 # elasticities(cd_prod)
 # elasticities(quad_prod)
@@ -643,23 +696,92 @@ gtgazer(
 summary(cd_prod$est)
 ```
 
+## Fonction de production quadratique
+
+$$
+q_i = \alpha + \sum_{k=1}^3\beta_k x_{ik} + εi
+$$
+
+```{r}
+quad_prod <- quadFuncEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    apples
+)
+
+summary(quad_prod$est)
+```
+
+## Others
 
 ```{r}
 apples <- apples |> mutate(cost = vCap + vLab + vMat)
 ```
 
-```{r}
-# Estime une fonction Cobb Douglas avec l'argument linear
-# translogCostEst("cost", "qOut", c("qCap", "qLab", "qMat"), apples)
-```
-
 - Avec la fonction de cout on trouve 2.7 -- à vérifier 
 
-Estimer des fonctions de cout, les rendements d'échelle, estimer la fonction CES, la leontieff généralisée, calculer le profit des producteurs, lien entre efficacité, optimalité, vérifier hétéroscédasticité.
+$\Rightarrow$ Estimer des fonctions de cout, les rendements d'échelle, estimer la fonction CES, la leontieff généralisée, calculer le profit des producteurs, lien entre efficacité, optimalité, vérifier hétéroscédasticité, modèles SFA et DEA potentiellement.
+
+La translog ayant bcp plus de paramètres, ce ne sera pas forcément la bonne forme fonctionnelle !
+
+Etudier les substitutions entre les facteurs ? Comment faire ? Car la Cobb Douglas ne permet pas de le faire.
 
 ```{r}
 cobbDouglasCalc(c("qCap", "qLab", "qMat"), apples, coef(cd_prod)[1:4], coefCov = NULL, dataLogged = FALSE)
 ```
+
+## Infos sur le sujet | ROADMAP
+$$
+Q = f(QCAP, QLAB, QMAT)\\
+$$
+
+il y a aussi les infos sur $C(Q)$
+
+
+- [ ] Expliquer les différences de profits entre les producteurs ? Regarder du coté des fonctions de profit.
+
+Propriété de la CD => si la fonction de prod est cobb douglas, alors la fonction de coût l'est aussi.
+
+alpha y => mesure des rendements d'échelle...
+
+- [ ] Pour la question 7, o nintègre la quantité d'inputs comme variable explicative => fonction de cout de court terme
+
+- [ ] Fonction de cout qui intègre que la quantité de capital ne change pas instantanément
+
+
+- [ ] Rendements d'échelle (somme des exposants) => on peut trouver ces rendements d'échelle soit en faisant la fonction de coût, ou la fonction de production. Mais on peut aussi les estimer grace à une fonction de demande
+
+**DEUX CHOSES ESSENTIELLES**
+
+
+- Il faut estimer les substitutions entre facteurs
+- Les rendements d'échelle
+
+
+Dans la cobb douglas les substitutions entre facteurs il est constant et c'est 1.
+
+Regarder le $\prod$
+
+
+### Notes sur la translog Cost
+
+On pourrait tt à fait estimer le système d'équations suivant :
+
+Voir aussi la slide 78 sur la fonction $\ln C$
+
+$$
+\begin{cases}
+S_1 = \alpha_1 + \sum^3_{i=1} \beta_{1j}\ln p_j + \beta_{1y}\ln y\\
+S_2 = \alpha_2 + \sum^3_{i=1} \beta_{2j}\ln p_j + \beta_{2y}\ln y\\
+S_3 = \alpha_3 + \sum^3_{i=1} \beta_{3j}\ln p_j + \beta_{3y}\ln y
+\end{cases}
+$$
+
+Inconvénients dans la translog et des formes flexibles : 
+
+Le nombre de paramètres explose à cause des effets croisés et risque important de collinéarité.
+
+Quand on passe au système au tableau, on a augmenté à 3*140 données (420 observations) et on a un peu moins de paramètres
 
 
 [done 💅]{style="color:red;"}
