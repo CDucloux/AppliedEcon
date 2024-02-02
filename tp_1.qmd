@@ -464,6 +464,37 @@ apples <- apples |> mutate(
 )
 ```
 
+```{r}
+apples |> 
+  ggplot()+
+  aes(x =  log(P_Index), y = log(L_Index), size = F_Index)+
+  geom_point()+
+  geom_smooth(method = lm, se = FALSE)+
+  labs(x = "Paasche Index", 
+       y = "Laspeyres Index",
+       title = "Relation entre Paasche & Laspeyres & Fisher",
+       caption = "Point Size : Fisher index value")+
+  theme(legend.position = "None")
+```
+
+```{r}
+apples |>
+    select(starts_with("AP"), "F_Index") |>
+    cor() |>
+    round(2) |>
+    data.frame() |>
+    gt() |>
+    tab_header("Matrice de corrélation") |> 
+    tab_style(
+      style = list(
+        cell_fill(color = "gray95")
+      ),
+      locations = cells_body(columns = F_Index)
+    )
+```
+
+
+
 ### Indice de productivité globale des facteurs
 
 - Nous avons choisi en tant qu'indice de productivité globale des facteurs l'indice de *Fisher*, étant donné que c'est une moyenne géométrique de l'indice de *Paasche* et de celui de *Laspeyres*.
