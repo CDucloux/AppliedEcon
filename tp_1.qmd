@@ -770,6 +770,114 @@ gtgazer(
 summary(quad_prod$est)
 ```
 
+## Fonction de production Translog
+:::{.callout-tip}
+
+## Forme de la fonction
+
+$$
+\begin{gathered} ln(q_i) = \alpha + \sum_{k=1}^3\beta_kln(x_{ik})  \\ + \frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3 \beta_{kl}ln(x_{ik})ln(x_{il}) + ε_i
+\end{gathered}
+$$
+:::
+
+```{r}
+translog_prod <- translogEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    apples
+)
+```
+
+```{r}
+summary(translog_prod)
+```
+
+## Fonction de coût Cobb Douglass
+:::{.callout-tip}
+
+## Forme de la fonction
+$$
+c_i = A \prod_{k=1}^{3} p_{ik}^{\alpha_k}q_i^{\alpha_y} \epsilon_i
+$$
+
+:::
+
+```{r}
+apples$cost <- apples$vCap + apples$vLab + apples$vMat
+```
+
+```{r}
+cobb_cost <- translogCostEst(
+  cName = "cost",
+  yName = "qOut",
+  pName = c("pCap", "pLab", "pMat"),
+  apples, homPrice = FALSE,
+  linear = TRUE
+)
+```
+
+```{r}
+summary(cobb_cost$est)
+```
+
+
+## Fonction de coût Cobb Douglass de court terme
+
+:::{.callout-tip}
+
+## Forme de la fonction
+$$
+c_i = A x_{i3}^{\alpha_3}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \epsilon_i
+$$
+
+:::
+
+```{r}
+cobb_cost_ct <- translogCostEst(
+  cName = "cost",
+  yName = "qOut",
+  pName = c("pLab", "pMat"),
+  fNames = "pCap",
+  apples, homPrice = FALSE,
+  linear = TRUE
+)
+```
+
+```{r}
+summary(cobb_cost_ct$est)
+```
+
+## Fonction de coût Translog
+
+:::{.callout-tip}
+
+## Forme de la fonction
+
+$$
+\begin{gathered}ln(c_i) = \alpha + \sum_{k=1}^3 \beta_k ln(p_{ik}) + \alpha_qln(q_i) \\ +\frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3\beta_{kl}ln(p_{ik})ln(p_{il})\frac{1}{2}\alpha_{q}(ln(q_i))^2 \\
++\frac{1}{2}\sum_{k=1}^3\alpha_{kq}ln(p_{ik})ln(q_i)+\epsilon_i
+\end{gathered}
+$$
+
+:::
+
+```{r}
+translog_cost <- translogCostEst(
+  cName = "cost",
+  yName = "qOut",
+  pName = c("pCap", "pLab", "pMat"),
+  apples, homPrice = FALSE
+)
+```
+
+```{r}
+summary(translog_cost$est)
+```
+
+
+
+
 ## Others
 
 ```{r}
