@@ -70,7 +70,7 @@ makestars <- function(pvalues) {
 
 
 gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) {
-    if (class(model) == "translogEst") {
+    if (class(model) %in% c("translogEst")) {
         coefficients <- summary(model)$coefTable[1:n_coef, 1]
         std_values <- summary(model)$coefTable[1:n_coef, 2]
         pvalues <- summary(model)$coefTable[1:n_coef, 4]
@@ -79,7 +79,7 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         adj_r2 <- round(summary(model)$r2bar, 3)
         n <- summary(model)$nObs
         dep_variable <- summary(model)$yName
-    } else if (class(model) == "quadFuncEst") {
+    } else if (class(model) %in% c("quadFuncEst", "translogCostEst")) {
         coefficients <- summary(model$est)$coefficients[, 1]
         std_values <- summary(model$est)$coefficients[, 2]
         pvalues <- summary(model$est)$coefficients[, 4]
@@ -87,7 +87,7 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         r2 <- round(model$r2, 3)
         adj_r2 <- round(model$r2bar, 3)
         n <- model$nObs
-        dep_variable <- model$yName
+        dep_variable <- ifelse(class(model) == "quadFuncEst",model$yName, model$cName)
     }
 
     coefnames <- coefnames
@@ -473,7 +473,7 @@ apples |>
   labs(x = "Paasche Index", 
        y = "Laspeyres Index",
        title = "Relation entre Paasche & Laspeyres & Fisher",
-       caption = "Point Size : Fisher index value")+
+       caption  = "Point Size : Fisher index value")+
   theme(legend.position = "None")
 ```
 
@@ -824,6 +824,29 @@ translog_prod <- translogEst(
 summary(translog_prod)
 ```
 
+```{r}
+gtgazer(
+    translog_prod,
+    n_coef = 9,
+    coefnames = c("$A$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$", "$\\beta_{11}$", "$\\beta_{12}$", "$\\beta_{13}$", "$\\beta_{22}$", "$\\beta_{23}$", "$\\beta_{33}$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`",
+        "- Coefficient associé à la variable `qCap²`",
+        "- Coefficient associé à la variable `qCap×qLab`",
+        "- Coefficient associé à la variable `qCap×qMat`",
+        "- Coefficient associé à la variable `qLab²`",
+        "- Coefficient associé à la variable `qLab×qMat`",
+        "- Coefficient associé à la variable `qMat²`"
+    ),
+    title = "**Fonction de production Translog**",
+    bg_color = bg_color
+)
+```
+
+
 ## Fonction de coût Cobb Douglass
 :::{.callout-tip}
 
@@ -843,7 +866,8 @@ cobb_cost <- translogCostEst(
   cName = "cost",
   yName = "qOut",
   pName = c("pCap", "pLab", "pMat"),
-  apples, homPrice = FALSE,
+  apples, 
+  homPrice = FALSE,
   linear = TRUE
 )
 ```
@@ -851,6 +875,24 @@ cobb_cost <- translogCostEst(
 ```{r}
 summary(cobb_cost$est)
 ```
+
+```{r}
+gtgazer(
+    cobb_cost,
+    n_coef = 4,
+    coefnames = c("$A$", "$\\alpha_1$", "$\\alpha_2$", "$\\alpha_3$", "$\\alpha_4$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qOut`",
+        "- Coefficient associé à la variable `pCap`",
+        "- Coefficient associé à la variable `pLab`",
+        "- Coefficient associé à la variable `pMat`"
+    ),
+    title = "**Fonction de coût Cobb Douglass**",
+    bg_color = bg_color
+)
+```
+
 
 
 ## Fonction de coût Cobb Douglass de court terme
@@ -877,6 +919,23 @@ cobb_cost_ct <- translogCostEst(
 
 ```{r}
 summary(cobb_cost_ct$est)
+```
+
+```{r}
+gtgazer(
+    cobb_cost_ct,
+    n_coef = 4,
+    coefnames = c("$A$", "$\\alpha_1$", "$\\alpha_2$", "$\\alpha_3$", "$\\alpha_4$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qOut`",
+        "- Coefficient associé à la variable `pCap`",
+        "- Coefficient associé à la variable `pLab`",
+        "- Coefficient associé à la variable `pMat`"
+    ),
+    title = "**Fonction de coût Cobb Douglass de court terme**",
+    bg_color = bg_color
+)
 ```
 
 ## Fonction de coût Translog
@@ -906,6 +965,18 @@ translog_cost <- translogCostEst(
 summary(translog_cost$est)
 ```
 
+```{r}
+gtgazer(
+    translog_cost,
+    n_coef = 9,
+    coefnames = c("$A$"),
+    description = c(
+        "- Constante du modèle"
+    ),
+    title = "**Fonction de coût Translog**",
+    bg_color = bg_color
+)
+```
 
 
 
