@@ -295,7 +295,15 @@ AP_table |>
     tab_header(
         title = md("**Productivité Moyenne par Facteur 📋**"),
         subtitle = md("*Capital --- Travail --- Matériaux*")
+    ) |>
+    cols_label(
+        min = md("$\\min$"),
+        mean = md("$\\mu$"),
+        max = md("$\\max$"),
+        std = md("$\\sigma^2$"),
+        type = ""
     )
+
 ```
 
 Ce tableau, en plus des visualisations qui vont suivre, permet d'établir que les productivités moyennes par facteur sont **très différentes selon les producteurs**. De plus, on s'aperçoit aussi qu'investir dans un facteur particulier peut être plus intéressant qu'un autre. 
@@ -335,7 +343,12 @@ apples |>
     round(2) |>
     data.frame() |>
     gt() |>
-    tab_header("Matrice de corrélation")
+    tab_header(title = md("**Matrice de corrélation**")) |>
+    cols_label(
+        qCap = md("$q_{Cap}$"),
+        qLab = md("$q_{Lab}$"),
+        qMat = md("$q_{Mat}$"),
+    )
 ```
 
 ### Corrélations entre les productivités moyennes
@@ -349,7 +362,12 @@ apples |>
     round(2) |>
     data.frame() |>
     gt() |>
-    tab_header("Matrice de corrélation")
+    tab_header(title = md("**Matrice de corrélation**")) |>
+    cols_label(
+        AP_Cap = md("$AP_{Mat}$"),
+        AP_Lab = md("$AP_{Lab}$"),
+        AP_Mat = md("$AP_{Mat}$")
+    )
 ```
 
 ```{r}
@@ -465,16 +483,18 @@ apples <- apples |> mutate(
 ```
 
 ```{r}
-apples |> 
-  ggplot()+
-  aes(x =  log(P_Index), y = log(L_Index), size = F_Index)+
-  geom_point()+
-  geom_smooth(method = lm, se = FALSE)+
-  labs(x = "Paasche Index", 
-       y = "Laspeyres Index",
-       title = "Relation entre Paasche & Laspeyres & Fisher",
-       caption = "Point Size : Fisher index value")+
-  theme(legend.position = "None")
+apples |>
+    ggplot() +
+    aes(x = P_Index, y = L_Index) +
+    geom_point() +
+    geom_smooth(method = lm, se = FALSE) +
+    labs(
+        x = "Paasche Index",
+        y = "Laspeyres Index",
+        title = "Relation entre Paasche & Laspeyres & Fisher",
+        caption = "Point Size : Fisher index value"
+    ) +
+    theme(legend.position = "None")
 ```
 
 ```{r}
@@ -484,15 +504,20 @@ apples |>
     round(2) |>
     data.frame() |>
     gt() |>
-    tab_header("Matrice de corrélation") |> 
+    tab_header("Matrice de corrélation") |>
     tab_style(
-      style = list(
-        cell_fill(color = "gray95")
-      ),
-      locations = cells_body(columns = F_Index)
+        style = list(
+            cell_fill(color = "gray95")
+        ),
+        locations = cells_body(columns = F_Index)
+    ) |>
+    cols_label(
+        AP_Cap = md("$AP_{Mat}$"),
+        AP_Lab = md("$AP_{Lab}$"),
+        AP_Mat = md("$AP_{Mat}$"),
+        F_Index = md("$\\text{Fisher}_{index}$")
     )
 ```
-
 
 
 ### Indice de productivité globale des facteurs
@@ -840,11 +865,11 @@ apples$cost <- apples$vCap + apples$vLab + apples$vMat
 
 ```{r}
 cobb_cost <- translogCostEst(
-  cName = "cost",
-  yName = "qOut",
-  pName = c("pCap", "pLab", "pMat"),
-  apples, homPrice = FALSE,
-  linear = TRUE
+    cName = "cost",
+    yName = "qOut",
+    pName = c("pCap", "pLab", "pMat"),
+    apples, homPrice = FALSE,
+    linear = TRUE
 )
 ```
 
@@ -866,12 +891,12 @@ $$
 
 ```{r}
 cobb_cost_ct <- translogCostEst(
-  cName = "cost",
-  yName = "qOut",
-  pName = c("pLab", "pMat"),
-  fNames = "pCap",
-  apples, homPrice = FALSE,
-  linear = TRUE
+    cName = "cost",
+    yName = "qOut",
+    pName = c("pLab", "pMat"),
+    fNames = "pCap",
+    apples, homPrice = FALSE,
+    linear = TRUE
 )
 ```
 
@@ -895,10 +920,10 @@ $$
 
 ```{r}
 translog_cost <- translogCostEst(
-  cName = "cost",
-  yName = "qOut",
-  pName = c("pCap", "pLab", "pMat"),
-  apples, homPrice = FALSE
+    cName = "cost",
+    yName = "qOut",
+    pName = c("pCap", "pLab", "pMat"),
+    apples, homPrice = FALSE
 )
 ```
 
