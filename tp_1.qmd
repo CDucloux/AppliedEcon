@@ -1,6 +1,6 @@
 ---
 title: "{{< fa flask >}} **Econométrie Appliquée**"
-title-block-banner: apples.png
+title-block-banner: imgs/apples.png
 subtitle: "Des 🍏 sur {{< fa brands r-project >}} !"
 toc: true
 toc-title: 📚 Table des matières
@@ -46,6 +46,17 @@ editor_options:
 ---
 
 ```{css, echo=FALSE}
+.img-block {
+    margin: auto;
+    width: 85%;
+    padding: 10px;
+    text-align: center;
+}
+.img-block img {
+    display: inline-block;
+    margin: auto;
+    max-width: 100%;
+}
 .title {
     color: white;
 }
@@ -53,6 +64,19 @@ editor_options:
     color: white;
 }
 ```
+
+***
+
+:::{.img-block}
+
+<img src="imgs/MECEN_logo.png" alt="MECEN Logo" style="width: 30%;">
+<img src="imgs/UT_logo.jpg" alt="UT Logo" style="width: 45%;">
+
+:::
+
+***
+
+
 
 ```{r}
 #| label: functions
@@ -88,6 +112,15 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         adj_r2 <- round(model$r2bar, 3)
         n <- model$nObs
         dep_variable <- ifelse(class(model) == "quadFuncEst", model$yName, model$cName)
+    } else if (class(model) == "lm") {
+        coefficients <- summary(model)$coefficients[, 1]
+        std_values <- summary(model)$coefficients[, 2]
+        pvalues <- summary(model)$coefficients[, 4]
+        signif <- makestars(pvalues)
+        r2 <- round(summary(model)$r.squared, 3)
+        adj_r2 <- round(summary(model)$adj.r.squared, 3)
+        n <- nobs(model)
+        dep_variable <- "qOut"
     }
 
     coefnames <- coefnames
@@ -151,6 +184,8 @@ library(FactoMineR)
 library(factoextra)
 library(ggtext)
 library(micEconIndex)
+library(micEconCES)
+library(frontier)
 ```
 
 ```{r}
@@ -193,7 +228,7 @@ apples <- read_excel("data/appleProdFr86.xlsx")
 
 : Descriptif des colonnes {.hover}
 
-### Tableau descriptif
+### Tableau descriptif {#sec-desc-table}
 
 > Ce tableau descriptif retrace les 10 premières observations et l'ensemble des variables associées dans le *dataset*.
 
@@ -613,7 +648,7 @@ apples |>
 
 - Ces résultats suggèrent que l'indice de *Fisher* n'est pas fortement corrélé avec les productivités moyennes individuelles des facteurs de production.
 
-### Indice de productivité globale des facteurs
+### Productivité globale des facteurs
 
 - Dans la section précédente, nous avons montré que les indices donnaient sensiblement les mêmes résultats. Nous avons néanmoins choisi en tant qu'indice de productivité globale des facteurs l'indice de *Fisher*, étant donné qu'il est une moyenne géométrique de l'indice de *Paasche* et de celui de *Laspeyres*.
 
@@ -638,7 +673,7 @@ apples |>
     ggplot() +
     aes(y = qOut, x = F_Index) +
     geom_point(colour = "darkorchid", alpha = alpha) +
-    labs(title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "")
+    labs(title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "", x = "Indice de Fisher")
 ```
 
 ::: {.callout-note}
@@ -690,7 +725,7 @@ mean_no_advice <- apples_grouped |>
     pull()
 ```
 
-- En moyenne, il semble ne pas y avoir de différence de productivité globale lorsque le producteur est conseillé. La productivité moyenne avec conseil est `r round(mean_advice,2)` et la productivité moyenne sans conseil est quant à elle `r round(mean_no_advice,2)`.
+- En moyenne, il semble ne pas y avoir de différence de productivité globale lorsque le producteur est conseillé. En effet, la productivité moyenne avec conseil est égale à `r round(mean_advice,2)` tandis que la productivité moyenne sans conseil est quant à elle égale à `r round(mean_no_advice,2)`.
 
 On peut aussi s'assurer que les moyennes sont significativement différentes en faisant un test de *Student* bilatéral :
 
@@ -833,32 +868,107 @@ $$
 
 :::
 
-On a pu constater un lien indéniable entre la quantité produite (`qOut`) et les productivités moyennes. On peut alors légitimement penser qu'il y a une relation entre la quantité produite et les quantités des facteurs de production. On peut effectuer une régression linéaire pour observer cette relation.
+On a pu constater un lien indéniable entre la quantité produite (`qOut`) et les productivités moyennes. On peut alors légitimement penser qu'il existe une relation entre la quantité produite et les quantités des facteurs de production.
 
-La relation linéaire est significative entre `qOut` et les variables explicatives `qMat` et `qLab.` Le $R^2$, supérieur à 0.78, démontre la bonne qualité de la régression. De ce modèle on peut dire que la quantité produite dépend principalement de la quanité de travail et de matière première engagé.
-
-```{r}
-linreg_prod <- lm(qOut ~ qMat + qLab + qCap, data = apples)
-stargazer::stargazer(linreg_prod, type = "text")
-```
-
-**TODO : Vérifier les résidus**
+**Avant de s'aventurer dans des formes fonctionnelles plus complexes, commençons par utiliser une simple fonction de production linéaire.**
 
 ```{r}
-# gtgazer(
-#    linreg_prod,
-#    n_coef = 4,
-#    coefnames = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"),
-#    description = c(
-#        "- Constante du modèle",
-#        "- Coefficient associé à la variable `qCap`",
-#        "- Coefficient associé à la variable `qLab`",
-#        "- Coefficient associé à la variable `qMat`"
-#    ),
-#    title = "**Fonction de production linéaire**",
-#    bg_color = bg_color
-# )
+#| label: linreg_prod
+#| code-fold: false
+linreg_prod <- lm(qOut ~ qCap + qLab + qMat, data = apples)
 ```
+
+```{r}
+#| label: linreg_prod_table
+#| echo: false
+gtgazer(
+    linreg_prod,
+    n_coef = 4,
+    coefnames = c("$\\alpha$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`"
+    ),
+    title = "**Fonction de production linéaire**",
+    bg_color = bg_color
+)
+```
+
+- Le coefficient associé à `qCap` est de 1.788, mais il n'est pas statistiquement significatif, ce qui suggère que la quantité de capital n'a pas une influence significative sur la production totale.
+
+- Le coefficient associé à `qLab` est de 11.831 avec un niveau de significativité très élevé, ce qui signifie que pour chaque unité supplémentaire de travail utilisée, la production totale augmente en moyenne de 11.831 unités. Cela revèle une fois de plus l'influence importante de la quantité de travail sur la quantité d'output.
+
+- Le coefficient associé à `qMat` est de 46.668 avec un niveau de significativité très élevé, ce qui indique que pour chaque unité supplémentaire de matériaux utilisés, la production totale augmente en moyenne de 46.668 unités.
+
+$R^2_{adj}$ = 0.782 donc 78.2% de la variance de la production totale est expliquée par la variance des variables explicatives.
+
+```{r}
+#| label: heterosced_investigate
+#| echo: false
+predicted_qOut <- predict(linreg_prod) |>
+    as_tibble() |>
+    rename(predicted_qOut = value)
+qOut <- apples |> select(qOut)
+
+residuals <- resid(linreg_prod) |>
+    as_tibble() |>
+    rename(residuals = value)
+
+bind_cols(qOut, predicted_qOut, residuals) |>
+    mutate(diff = predicted_qOut / qOut) |>
+    arrange(diff) |>
+    gt() |>
+    tab_header(title = md("🔎 Comparaison de la **production effective** et de la **production prédite**")) |>
+    cols_label(
+        qOut = md("$q_{Out}$"),
+        predicted_qOut = md("$\\widehat{q_{Out}}$"),
+        residuals = md("$\\varepsilon_i$"),
+        diff = md("$\\widehat{q_{Out}}/q_{Out}$")
+    ) |>
+    fmt_number(suffixing = TRUE, n_sigfi = 2) |>
+    data_color(
+        columns = diff,
+        rows = diff > 0.7 & diff < 1.3,
+        method = "numeric",
+        palette = "green",
+    ) |>
+    cols_align("center") |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+```{r}
+performance::check_normality(linreg_prod)
+
+# plot(predicted_qOut, residuals)
+
+qqnorm(residuals |> pull())
+qqline(residuals |> pull())
+
+# à changer en ggplot2 ici
+```
+
+We can also produce a density plot, which is also useful for visually checking whether or not the residuals are normally distributed
+
+**TODO : Continuer la partie sur l'hétéroscédasticité**
+
+::: {.callout-caution}
+
+## Inconvénients de la forme fonctionnelle linéaire
+
+Malgré un $R^2_{adj}$ proche de 0.8, ce qui signifie que le modèle a plutôt un bon ajustement, la spécification linéaire possède plusieurs problèmes :
+
+1. Elle ne permet pas d'estimer les rendements d'échelle car ils sont fixés comme constants dans la forme fonctionnelle.
+2. Elle ne permet pas d'évaluer les possibilités de substitution entre les trois facteurs de production.
+
+$\Rightarrow$ Face à ces inconvénients du modèle linéaire, la fonction **Cobb-Douglas** permet de fournir une réponse au point *(1)*.
+
+:::
+
 
 ## Fonction Cobb-Douglas
 
@@ -876,55 +986,30 @@ $$
 q_{Out} = A\cdot q_{Cap}^\alpha \cdot q_{Lab}^\beta \cdot q_{Mat}^\gamma \cdot ε_i
 $$
 
-:::
-
-Dans le cadre de cette étude comparative, nous avons 3 *inputs* :
-
-- `qCap` $\Rightarrow$ la quantité de capital
-- `qLab` $\Rightarrow$ la quantité de travail
-- `qMat` $\Rightarrow$ la quantité de matériaux
-
-Nous obtenons donc la forme suivante :
-
-*Avec $A, \alpha, \beta, \gamma \Rightarrow$ 4 paramètres à estimer.*
-
-On peut facilement linéariser la fonction, dès lors on obtient :
+On peut aussi facilement linéariser la fonction, dès lors on obtient :
 
 $$
 \ln(q_{out}) = \ln(A) + \alpha \cdot \ln(q_{Cap}) + \beta \cdot \ln(q_{Lab}) + \gamma \cdot \ln(q_{Mat}) +  \ln{(ε_i)}
 $$
 
-Allen Elasticity of Substitution (AES)
+:::
 
-$\sigma_{\{\text{qCap, qLab, qMat}\}} = 1$
-
-
-**Rappel** : Si la fonction de production est **Cobb-Douglas**, alors on a normalement $\hat\alpha + \hat\beta + \hat\gamma = 1$
-
-On peut tester cette hypothèse : 
-
-$$
-\begin{cases}
-H_0 : \alpha + \beta + \gamma = 1\\
-H_1 : \alpha + \beta + \gamma \neq 1\\
-\end{cases}
-$$
-
+Le package `micEcon` propose néanmoins l'estimation d'une fonction de production **Cobb-Douglas** grâce à la fonction `translogEst` et l'argument `linear = TRUE`^[En effet, la fonction **Translog** est une généralisation de la fonction **Cobb-Douglas**].
 
 ```{r}
-# Estime une fonction de production Cobb Douglas avec l'argument linear
+#| label: cd_prod
+#| code-fold: false
 cd_prod <- translogEst(
     "qOut",
     c("qCap", "qLab", "qMat"),
-    apples,
+    data = apples,
     linear = TRUE
 )
-
-# elasticities(cd_prod)
-# elasticities(quad_prod)
 ```
 
 ```{r}
+#| label: cd_prod_table
+#| echo: false
 gtgazer(
     cd_prod,
     n_coef = 4,
@@ -940,15 +1025,54 @@ gtgazer(
 )
 ```
 
+Les exposants $\alpha$, $\beta$ et $\gamma$ sont les élasticités de la production, c'est-à-dire qu'ils mesurent respectivement le changement en pourcentage de l'output aux variations en pourcentage de la quantité de capital, de la quantité de travail et de la quantité de matériaux.
+
+- Grâce à ces coefficients estimés, on peut déterminer les rendements d'échelle.
+
+::: {.callout-note}
+
+## Rendements d'échelle
+
+- **Décroissants** si $\hat{\alpha} + \hat{\beta} + \hat{\gamma} < 1$
+
+- **Constants** si $\hat{\alpha} + \hat{\beta} + \hat{\gamma} = 1$
+
+- **Croissants** si $\hat{\alpha} + \hat{\beta} + \hat{\gamma} > 1$
+
+:::
 
 ```{r}
-summary(cd_prod$est)
+#| label: return_to_scale
+#| code-fold: false
+alpha <- cd_prod$coef[2] |> unname()
+beta <- cd_prod$coef[3] |> unname()
+gamma <- cd_prod$coef[4] |> unname()
+
+return_to_scale <- alpha + beta + gamma
 ```
 
+- On trouve donc que $\hat{\alpha} + \hat{\beta} + \hat{\gamma} =$ **`r round(return_to_scale, 2)`**, donc les rendements d'échelles sont croissants, c'est à dire que le processus de production est considéré comme particulièrement efficace et présente des *économies d’échelle*. 
 
+- Ces rendements d’échelle croissants sont souvent le résultat de coûts fixes élevés *(voir la @sec-desc-table pour s'en convaincre)*.
+
+> Une implication de ce résultat est que des installations de production à grande échelle ont tendance à être plus efficaces que des installations à petite échelle.
+
+***
+
+**Intéressons-nous à l’élasticité de substitution, qui mesure la facilité avec laquelle un input peut être substitué par un autre.**
+
+- Si l'elasticité de substitution n'est pas empiriquement estimable pour la **Cobb-Douglas**, celle-ci suppose implicitement que l'élasticité de substitution de *Allen* est égale à un, soit $\sigma_{\{\text{qCap, qLab, qMat}\}} = 1$. 
+
+- Cela implique une substitution **parfaite** entre les facteurs de production $q_{Cap}$, $q_{Lab}$ et $q_{Mat}$, **ce qui va clairement à l'encontre des résultats de la @sec-ap-prod**. 
+
+On ne peut donc pas étudier les substitutions entre les facteurs de production car la **Cobb-Douglas** ne permet tout simplement pas de le faire ! 
+
+```{r}
+# elasticities(cd_prod)
+# elasticities(quad_prod)
+```
 
 ## Fonction de production quadratique
-
 
 :::{.callout-tip}
 
@@ -957,6 +1081,8 @@ summary(cd_prod$est)
 $$
 q_i = \alpha + \sum_{k=1}^3\beta_k x_{ik} + \frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3 \beta_{kl}x_{ik}x_{il} + ε_i
 $$
+
+- La **fonction de production quadratique** dans notre cas s'écrit donc sous la forme :
 
 $$
 \begin{gathered}q_{Out}​=α+β_1​q_{Cap}​+β_2​q_{Lab}​+β_3​q_{Mat}\\
@@ -1048,6 +1174,10 @@ gtgazer(
 )
 ```
 
+## Fonction de production CES
+
+## Fonction de production SFA
+
 
 ## Fonction de coût Cobb Douglass
 :::{.callout-tip}
@@ -1093,8 +1223,6 @@ gtgazer(
     bg_color = bg_color
 )
 ```
-
-
 
 ## Fonction de coût Cobb Douglass de court terme
 
@@ -1179,8 +1307,6 @@ gtgazer(
 )
 ```
 
-
-
 ## Others
 
 ```{r}
@@ -1192,8 +1318,6 @@ apples <- apples |> mutate(cost = vCap + vLab + vMat)
 $\Rightarrow$ Estimer des fonctions de cout, les rendements d'échelle, estimer la fonction CES, la leontieff généralisée, calculer le profit des producteurs, lien entre efficacité, optimalité, vérifier hétéroscédasticité, modèles SFA et DEA potentiellement.
 
 La translog ayant bcp plus de paramètres, ce ne sera pas forcément la bonne forme fonctionnelle !
-
-Etudier les substitutions entre les facteurs ? Comment faire ? Car la Cobb Douglas ne permet pas de le faire.
 
 ```{r}
 cobbDouglasCalc(c("qCap", "qLab", "qMat"), apples, coef(cd_prod)[1:4], coefCov = NULL, dataLogged = FALSE)
