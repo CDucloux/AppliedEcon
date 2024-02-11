@@ -68,7 +68,7 @@ editor_options:
 ***
 
 :::{.img-block}
-
+<br>
 <img src="imgs/MECEN_logo.png" alt="MECEN Logo" style="width: 30%;">
 <img src="imgs/UT_logo.jpg" alt="UT Logo" style="width: 45%;">
 
@@ -76,10 +76,9 @@ editor_options:
 
 ***
 
-
-
 ```{r}
 #| label: functions
+#| echo: false
 
 makestars <- function(pvalues) {
     return(
@@ -139,7 +138,11 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
             signif = md("**Significativité**")
         ) |>
         fmt_markdown(columns = c(coefnames, signif, description)) |>
-        fmt_number(columns = c(coefficients, pvalues), decimals = 3) |>
+        fmt_number(
+            columns = c(coefficients, pvalues),
+            decimals = 3,
+            drop_trailing_zeros = TRUE
+        ) |>
         fmt(columns = std_values, fns = function(std) {
             paste("+/-", round(std, 3))
         }) |>
@@ -167,25 +170,24 @@ Tout au long de ce projet, nous utiliserons l'approche [`tidy`](https://www.tidy
 
 :::
 
-
 ```{r}
 #| label: lib_imports
 #| warning: false
 #| code-fold: false
 library(ggplot2)
 library(dplyr)
-library(readxl)
-library(micEcon)
+library(tidyr)
 library(gt)
 library(tibble)
 library(patchwork)
-library(showtext)
 library(FactoMineR)
 library(factoextra)
 library(ggtext)
+library(micEcon)
 library(micEconIndex)
 library(micEconCES)
 library(frontier)
+library(performance)
 ```
 
 ```{r}
@@ -209,7 +211,7 @@ Le jeu de données `appleProdFr86` utilisé dans le papier d'économétrie de @i
 ```{r}
 #| label: data_import
 #| code-fold: false
-apples <- read_excel("data/appleProdFr86.xlsx")
+apples <- readxl::read_excel("data/appleProdFr86.xlsx")
 ```
 
 | Colonnes    | Description                                                                                              |
@@ -315,7 +317,7 @@ apples |>
 
 La productivité moyenne ($AP =$ **Average Product**) consiste à diviser la quantité totale d'output par la quantité totale de facteur utilisé *(input)* dans le processus de production.
 
-Imaginons que les unités d'output sont des tonnes. Pour chaque input, cela revient en fait à expliquer combien de tonnes sont produites par unité de capital, de travail et de matières intermédiaires en 1986 pour chaque producteur de pommes.
+Imaginons que les unités d'output sont des tonnes. Pour chaque input, cela revient en fait à expliquer combien de tonnes sont produites **en moyenne** par unité de capital, de travail et de matières intermédiaires en 1986 pour chaque producteur de pommes.
 
 Nous obtenons alors respectivement :
 
@@ -643,6 +645,9 @@ apples |>
     tab_style(
         style = cell_fill(color = "gray95"),
         locations = cells_body(rows = c(4))
+    ) |>
+    tab_options(
+        table.background.color = bg_color
     )
 ```
 
@@ -902,7 +907,7 @@ gtgazer(
 
 - Le coefficient associé à `qMat` est de 46.668 avec un niveau de significativité très élevé, ce qui indique que pour chaque unité supplémentaire de matériaux utilisés, la production totale augmente en moyenne de 46.668 unités.
 
-$R^2_{adj}$ = 0.782 donc 78.2% de la variance de la production totale est expliquée par la variance des variables explicatives.
+$R^2_{adj}=$ 0.782 donc 78.2% de la variance de la production totale est expliquée par la variance des variables explicatives.
 
 ```{r}
 #| label: heterosced_investigate
@@ -941,20 +946,32 @@ bind_cols(qOut, predicted_qOut, residuals) |>
     opt_interactive(use_highlight = TRUE)
 ```
 
+### Hétéroscédasticité
+
+Les résidus sont-ils normalement distribués ?
+
+**TODO : Continuer la partie sur l'hétéroscédasticité**
+
 ```{r}
-performance::check_normality(linreg_prod)
+#| label: heteroscedasticity
 
-# plot(predicted_qOut, residuals)
-
-qqnorm(residuals |> pull())
-qqline(residuals |> pull())
-
+# performance::check_normality(linreg_prod)
+# qqnorm(residuals |> pull())
+# qqline(residuals |> pull())
 # à changer en ggplot2 ici
 ```
 
-We can also produce a density plot, which is also useful for visually checking whether or not the residuals are normally distributed
+### Spécification de la forme fonctionnelle
 
-**TODO : Continuer la partie sur l'hétéroscédasticité**
+On peut utiliser un RESET TEST pour vérifier la forme fonctionnelle est bonne. 
+
+```{r}
+resettest(linreg_prod, power = 2)
+AIC(linreg_prod)
+logLik(linreg_prod) # extraire la log likelihood
+```
+
+Ici, on va préférer prendre une autre forme fonctionnelle
 
 ::: {.callout-caution}
 
@@ -986,7 +1003,7 @@ $$
 q_{Out} = A\cdot q_{Cap}^\alpha \cdot q_{Lab}^\beta \cdot q_{Mat}^\gamma \cdot ε_i
 $$
 
-On peut aussi facilement linéariser la fonction, dès lors on obtient :
+On peut aussi facilement linéariser la fonction pour pouvoir la préparer à une procédure `lm`, dès lors on obtient :
 
 $$
 \ln(q_{out}) = \ln(A) + \alpha \cdot \ln(q_{Cap}) + \beta \cdot \ln(q_{Lab}) + \gamma \cdot \ln(q_{Mat}) +  \ln{(ε_i)}
@@ -994,7 +1011,7 @@ $$
 
 :::
 
-Le package `micEcon` propose néanmoins l'estimation d'une fonction de production **Cobb-Douglas** grâce à la fonction `translogEst` et l'argument `linear = TRUE`^[En effet, la fonction **Translog** est une généralisation de la fonction **Cobb-Douglas**].
+Le package `micEcon` propose néanmoins l'estimation d'une fonction de production **Cobb-Douglas** grâce à la fonction `translogEst` et l'argument `linear = TRUE`^[Grâce à cet argument, on restreint en fait les coefficients de tous les termes *quadratiques* et d'*interaction* à zéro, ce qui revient à estimer une fonction **Cobb-Douglas**.].
 
 ```{r}
 #| label: cd_prod
@@ -1025,13 +1042,41 @@ gtgazer(
 )
 ```
 
+```{r}
+#| label: cd_prod_metrics
+#| echo: false
+apples <- apples |> mutate(
+    log_qOut = log(qOut),
+    log_qCap = log(qCap),
+    log_qLab = log(qLab),
+    log_qMat = log(qMat)
+)
+
+cd_prod_2 <- lm(
+    log_qOut ~ log_qCap + log_qLab + log_qMat,
+    data = apples
+)
+
+check_posterior_predictions(cd_prod_2)
+check_posterior_predictions(linreg_prod)
+
+aic_cd_prod <- AIC(cd_prod_2)
+bic_cd_prod <- BIC(cd_prod_2)
+loglik_cd_prod <- logLik(cd_prod_2)[1]
+```
+
+
+- La qualité d'ajustement du modèle a diminué, le $R^2_{adj}$ a baissé de près de 20% pour atteindre 0.585.
+
+### Rendements d'échelle
+
 Les exposants $\alpha$, $\beta$ et $\gamma$ sont les élasticités de la production, c'est-à-dire qu'ils mesurent respectivement le changement en pourcentage de l'output aux variations en pourcentage de la quantité de capital, de la quantité de travail et de la quantité de matériaux.
 
 - Grâce à ces coefficients estimés, on peut déterminer les rendements d'échelle.
 
 ::: {.callout-note}
 
-## Rendements d'échelle
+## Note sur les rendements d'échelle
 
 - **Décroissants** si $\hat{\alpha} + \hat{\beta} + \hat{\gamma} < 1$
 
@@ -1067,10 +1112,66 @@ return_to_scale <- alpha + beta + gamma
 
 On ne peut donc pas étudier les substitutions entre les facteurs de production car la **Cobb-Douglas** ne permet tout simplement pas de le faire ! 
 
+### Productivité marginale des inputs
+
+La productivité marginale se réfère à la variation de la production totale résultant d'une petite variation d'un facteur de production spécifique, *toutes choses égales par ailleurs*.
+
+En d'autres termes, il s'agit de la quantité supplémentaire d'output qu'une entreprise peut produire en utilisant une unité supplémentaire d'un facteur de production donné, tout en maintenant constantes les quantités des autres facteurs de production.
+
+Nous obtenons alors respectivement :
+
+- $MP_{Cap} = \frac{\partial q_{Out}}{\partial q_{Cap}}$
+
+- $MP_{Lab} = \frac{\partial q_{Out}}{\partial q_{Lab}}$
+
+- $MP_{Mat} = \frac{\partial q_{Out}}{\partial q_{Mat}}$
+
+On peut facilement calculer ces productivités marginales avec la fonction `cobbDouglasDeriv`.
+
 ```{r}
-# elasticities(cd_prod)
-# elasticities(quad_prod)
+#| label: cd_prod_mp
+#| code-fold: false
+cd_prod_margProducts <- cobbDouglasDeriv(
+    c("qCap", "qLab", "qMat"),
+    data = apples, coef = coef(cd_prod)[1:4],
+    coefCov = vcov(cd_prod)[1:4, 1:4]
+)
 ```
+
+```{r}
+#| label: cd_prod_mp_table
+#| echo: false
+cd_prod_margProducts$deriv |>
+    as_tibble() |>
+    rowid_to_column() |>
+    gt() |>
+    cols_label(
+        rowid = md("$N$"),
+        qCap = md("$MP_{Cap}$"),
+        qLab = md("$MP_{Lab}$"),
+        qMat = md("$MP_{Mat}$")
+    ) |>
+    fmt_number(-rowid) |>
+    fmt_integer(rowid, pattern = "Producteur {x}") |>
+    cols_align("center") |>
+    tab_header(
+        title = md("**Productivités marginales**"),
+        subtitle = md("*Dans le cadre d'une fonction de production `Cobb-Douglas`*")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+
+# elasticities(cd_prod)
+```
+
+- Par exemple, pour le producteur 1 : 
+  - L'augmentation d'une unité de **capital** tout en maintenant constant le niveau de travail et de matériaux entraînera une augmentation de 6.23 unités d'output.
+  - L'augmentation d'une unité de **travail** tout en maintenant constant le niveau de capital et de matériaux entrainera une augmentation de 6.03 unités d'output.
+  - L'augmentation d'une unité de **matériaux** tout en maintenant constant le niveau de travail et de capital entrainera une augmentation de 59.09 unités d'output.
+
+> On remarque dans ce modèle que la productivité marginale des matériaux est supérieure à celle du capital et du travail **pour tous les producteurs**. De plus, aucune productivité marginale n'est négative
 
 ## Fonction de production quadratique
 
@@ -1087,27 +1188,37 @@ $$
 $$
 \begin{gathered}q_{Out}​=α+β_1​q_{Cap}​+β_2​q_{Lab}​+β_3​q_{Mat}\\
 ​+\frac{1}{2}​(β_{11}​q^2_{Cap}​+β_{22}​q^2_{Lab}​+β_{33}​q^2_{Mat})\\
-​+\frac{1}{2}​(2β_{12}​q_{Cap}​q_{Lab}​+2β_{13}​q_{Cap}​q_{Mat}​+2β_{23}​q_{Lab}​q_{Mat}​)+ε_i​
+​+​β_{12}​q_{Cap}​q_{Lab}​+β_{13}​q_{Cap}​q_{Mat}​+β_{23}​q_{Lab}​q_{Mat}​+ε_i​
 \end{gathered}
 $$
 
 :::
 
-- $3^2 = 9$ coefficients à estimer !
+**✅ Avantages :** 
+
+- La fonction de production quadratique va permettre d'ajouter des termes *quadratiques* et des effets d'*interaction*, rendant la modélisation plus robuste.
+
+**❌ Inconvénients :** 
+
+- L'ajout de termes supplémentaires implique plus de complexité et de coefficients à estimer $(3^2 = 9)$.
 
 ```{r}
+#| label: quad_prod
+#| code-fold: false
 quad_prod <- quadFuncEst(
     "qOut",
     c("qCap", "qLab", "qMat"),
-    apples
+    data = apples
 )
 ```
 
 ```{r}
+#| label: quad_prod_table
+#| echo: false
 gtgazer(
     quad_prod,
     n_coef = 9,
-    coefnames = c("$A$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$", "$\\beta_{11}$", "$\\beta_{12}$", "$\\beta_{13}$", "$\\beta_{22}$", "$\\beta_{23}$", "$\\beta_{33}$"),
+    coefnames = c("$\\alpha$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$", "$\\beta_{11}$", "$\\beta_{12}$", "$\\beta_{13}$", "$\\beta_{22}$", "$\\beta_{23}$", "$\\beta_{33}$"),
     description = c(
         "- Constante du modèle",
         "- Coefficient associé à la variable `qCap`",
@@ -1122,11 +1233,96 @@ gtgazer(
     ),
     title = "**Fonction de production quadratique**",
     bg_color = bg_color
+) |> fmt_number(
+    columns = coefficients,
+    rows = c(5:9),
+    decimals = 5,
+    drop_trailing_zeros = TRUE
 )
 ```
 
 ```{r}
-summary(quad_prod$est)
+#| label: quad_prod_metrics
+#| echo: false
+apples <- apples |> mutate(
+    qCap2 = 0.5 * qCap^2,
+    qLab2 = 0.5 * qLab^2,
+    qMat2 = 0.5 * qMat^2
+)
+
+quad_prod_2 <- lm(
+    qOut ~ qCap + qLab + qMat +
+        qCap2 + qLab2 + qMat2 +
+        I(qCap * qLab) + I(qLab * qMat) + I(qMat * qCap),
+    data = apples
+)
+
+aic_quad_prod <- AIC(quad_prod_2)
+bic_quad_prod <- BIC(quad_prod_2)
+loglik_quad_prod <- logLik(quad_prod_2)[1]
+```
+
+- Le coefficient associé à `qCap` est de 5.27, mais il n'est pas statistiquement significatif, ce qui suggère que la quantité de capital n'a pas une influence significative sur la production totale dans ce modèle.
+
+- Le coefficient associé à `qLab` est de 6.077 avec un niveau de significativité assez faible, ce qui signifie que pour chaque unité supplémentaire de travail utilisée, la production totale augmente en moyenne de 6.077 unités, *toutes choses égales par ailleurs*.
+
+- Le coefficient associé à `qMat` est de 14.303, mais il n'est pas statistiquement significatif, ce qui suggère que la quantité de matériaux n'a pas une influence significative sur la production totale dans ce modèle.
+
+- Le coefficient associé à l'effet d'interaction entre les quantités de capital et de travail (`qCap×qLab`) est négatif et significatif au seuil de 5%. Cela suggère que l'interaction entre ces 2 facteurs a un effet négatif sur la production.
+
+- Le coefficient associé à l'effet d'interaction entre les quantités de tavail et de matériaux (`qLab×qMat`) est positif et significatif au seuil de 1%. Cela suggère que l'interaction entre ces 2 facteurs a un effet positif sur la production.
+
+- Enfin, le coefficient associé à l'effet quadratique des matériaux (`qMat²`) est statistiquement significatif au seuil 5% et possède une valeur négative, ce qui suggère une courbe de rendement d'échelle décroissante pour les matériaux, indiquant que l'augmentation de la quantité de matériaux pourrait initialement augmenter la production, mais à un rythme décroissant.
+
+$R^2_{adj} =$ 0.834 donc 83.4% de la variance de la production totale est expliquée par la variance des variables explicatives. Ce résultat est meilleur que les fonctions de production linéaire et Cobb-Douglas.
+
+
+
+### Productivité marginale des inputs
+
+```{r}
+#| label: quad_prod_mp
+#| code-fold: false
+quad_prod_margProducts <- quadFuncDeriv(
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    coef = coef(quad_prod),
+    coefCov = vcov(quad_prod)
+)
+```
+
+```{r}
+#| label: quad_prod_mp_table
+#| echo: false
+quad_prod_margProducts |>
+    as_tibble() |>
+    rowid_to_column() |>
+    gt() |>
+    cols_label(
+        rowid = md("$N$"),
+        qCap = md("$MP_{Cap}$"),
+        qLab = md("$MP_{Lab}$"),
+        qMat = md("$MP_{Mat}$")
+    ) |>
+    fmt_number(-rowid) |>
+    fmt_integer(rowid, pattern = "Producteur {x}") |>
+    cols_align("center") |>
+    tab_header(
+        title = md("**Productivités marginales**"),
+        subtitle = md("*Dans le cadre d'une fonction de production `quadratique`*")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+### Elasticité de substitution des inputs
+
+**TODO** : à confirmer ?
+
+```{r}
+# elasticities(quad_prod)
 ```
 
 ## Fonction de production Translog
@@ -1141,10 +1337,12 @@ $$
 :::
 
 ```{r}
+#| label: translog_prod
+#| code-fold: false
 translog_prod <- translogEst(
     "qOut",
     c("qCap", "qLab", "qMat"),
-    apples
+    data = apples
 )
 ```
 
@@ -1155,7 +1353,7 @@ summary(translog_prod)
 ```{r}
 gtgazer(
     translog_prod,
-    n_coef = 9,
+    n_coef = 10,
     coefnames = c("$A$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$", "$\\beta_{11}$", "$\\beta_{12}$", "$\\beta_{13}$", "$\\beta_{22}$", "$\\beta_{23}$", "$\\beta_{33}$"),
     description = c(
         "- Constante du modèle",
@@ -1174,9 +1372,61 @@ gtgazer(
 )
 ```
 
+```{r}
+translogCheckMono(
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    coef = coef(translog_prod),
+    increasing = TRUE
+)
+```
+
+**Check whether the production function is quasiconcave**
+
+```{r}
+translogCheckCurvature(
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    coef = coef(translog_prod),
+    convexity = FALSE,
+    quasi = TRUE
+)
+```
+
 ## Fonction de production CES
 
 ## Fonction de production SFA
+
+**TODO** tester avec plusieurs formes fonctionnelles ? Pour l'instant, ça a été fait avec une cobb douglas, mais on pourrait aussi le faire avec une translog.
+
+```{r}
+cd_sfa <- sfa(log(qOut) ~ log(qCap) + log(qLab) + log(qMat), data = apples)
+
+cd_sfa$olsParam # on retrouve les mêmes params que la cobb douglas ici
+cd_sfa
+
+lrtest(cd_sfa) # interprétation : la SFA c'est wallah mieux que la Cobb Douglas classique.
+
+# Note => Faire plus de tests de comparaison de modèles : translog vs cobb douglas, etc...
+
+resettestFrontier(cd_sfa, power = 2) # notre modèle
+
+
+effic <- efficiencies(cd_sfa)
+
+effic |>
+    as_tibble() |>
+    summarise(
+        mean_eff = mean(efficiency),
+        min_eff = min(efficiency),
+        max_eff = max(efficiency)
+    )
+
+```
+
+le `resettest` permet $\Rightarrow$ de tester si des combinaisons non-linéaires des variables explicatives aident à expliquer the response variable. 
+
+The intuition behind the test is that if non-linear combinations of the explanatory variables have any power in explaining the response variable, the model is misspecified in the sense that the data generating process might be better approximated by a polynomial or another non-linear functional form. 
 
 
 ## Fonction de coût Cobb Douglass
@@ -1189,8 +1439,12 @@ $$
 
 :::
 
+> Calculons d'abord le coût total des inputs, c'est à dire $v_{Cap} + v_{Lab} + v_{Mat}$.
+
 ```{r}
-apples$cost <- apples$vCap + apples$vLab + apples$vMat
+#| label: total_cost
+#| code-fold: false
+apples <- apples |> mutate(cost = vCap + vLab + vMat)
 ```
 
 ```{r}
@@ -1307,37 +1561,25 @@ gtgazer(
 )
 ```
 
-## Others
+## Profit des producteurs
 
 ```{r}
-apples <- apples |> mutate(cost = vCap + vLab + vMat)
+apples |>
+    select(pOut, qOut) |>
+    mutate(profit = pOut * qOut)
 ```
 
-- Avec la fonction de cout on trouve 2.7 -- à vérifier 
+## Infos sur le sujet | ROADMAP
 
 $\Rightarrow$ Estimer des fonctions de cout, les rendements d'échelle, estimer la fonction CES, la leontieff généralisée, calculer le profit des producteurs, lien entre efficacité, optimalité, vérifier hétéroscédasticité, modèles SFA et DEA potentiellement.
 
 La translog ayant bcp plus de paramètres, ce ne sera pas forcément la bonne forme fonctionnelle !
 
-```{r}
-cobbDouglasCalc(c("qCap", "qLab", "qMat"), apples, coef(cd_prod)[1:4], coefCov = NULL, dataLogged = FALSE)
-```
-
-## Infos sur le sujet | ROADMAP
-$$
-Q = f(QCAP, QLAB, QMAT)\\
-$$
-
-il y a aussi les infos sur $C(Q)$
-
-
 - [ ] Expliquer les différences de profits entre les producteurs ? Regarder du coté des fonctions de profit.
 
 Propriété de la CD => si la fonction de prod est cobb douglas, alors la fonction de coût l'est aussi.
 
-alpha y => mesure des rendements d'échelle...
-
-- [ ] Pour la question 7, o nintègre la quantité d'inputs comme variable explicative => fonction de cout de court terme
+- [ ] Pour la question 7, on intègre la quantité d'inputs comme variable explicative => fonction de cout de court terme
 
 - [ ] Fonction de cout qui intègre que la quantité de capital ne change pas instantanément
 
@@ -1349,9 +1591,6 @@ alpha y => mesure des rendements d'échelle...
 
 - Il faut estimer les substitutions entre facteurs
 - Les rendements d'échelle
-
-
-Dans la cobb douglas les substitutions entre facteurs il est constant et c'est 1.
 
 Regarder le $\prod$
 
