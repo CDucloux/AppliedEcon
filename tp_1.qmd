@@ -186,6 +186,11 @@ library(ggtext)
 library(micEconIndex)
 library(micEconCES)
 library(frontier)
+library(ranger)
+library(tuneRanger)
+library(mlr)
+library(rsample)
+library(forcats)
 ```
 
 ```{r}
@@ -1173,6 +1178,79 @@ gtgazer(
     bg_color = bg_color
 )
 ```
+
+## Machine Learning de production
+
+À titre expérimental, il est envisageable d'explorer l'utilisation du Machine Learning pour étudier la production de pommes. Cependant, compte tenu du peu de données disponibles, cette approche n'est pas idéale. Nous envisageons néanmoins d'appliquer un algorithme de Random Forest. Ce modèle permet d'extraire l'importance des variables, offrant ainsi une certaine transparence dans le fonctionnement de ce modèle de Machine Learning souvent perçu comme une boîte noire.
+
+Comme pour les fonction de production nous tentons d'expliquer la variable `qOut` à partir des variables `qLab`, `qCap` et `qMat`.
+
+
+```{r}
+apples_cut <- read_excel("data/appleProdFr86.xlsx")
+apples_cut <- apples_cut[,-c(1:6, 8:12)]
+split <- apples_cut |> initial_split(prop = 2/3)
+df_train <- split |> training()
+df_test <- split |> testing()
+```
+
+```{r}
+#task <- makeRegrTask(data = df_train, target = "qOut")
+
+#Tuning
+#estimateTimeTuneRanger(task)
+#rf <- tuneRanger(task,
+#                 tune.parameters = c("mtry", "min.node.size"),
+#                 num.trees = 1000)
+
+#Best model
+#params <- rf$recommended.pars
+best_model <- ranger(formula = qOut ~.,
+       data = df_train,
+       mtry = 1, #params$mtry,
+       min.node.size = 2 , #params$min.node.size,
+       importance = "permutation")
+
+#Prédiction
+pred <- predict(best_model, data = df_test)$predictions
+```
+
+```{r}
+metric_mae <- mean(abs(pred - df_test$qOut))
+metric_r2 <- 1 - sum((pred - df_test$qOut)^2) / sum((mean(df_test$qOut) - df_test$qOut)^2) 
+```
+
+Le coefficient de détermination $R^2$ associé à ce modèle de Random Forest est de **`r round(metric_r2,3)`**, ce qui est similaire au score que nous avions obtenu précédemment.
+
+Avec le graphique ci-dessous, nous pouvons comparer les valeurs prédites et les valeurs réelles. La ligne rouge en pointillés indique que lorsque les points se trouvent dessus, le modèle a fait une prédiction parfaite. Cependant, si un point est au-dessus (resp. en-dessous) de la ligne, cela signifie que le modèle a sous-estimé (resp. surestimé) `qOut`.
+
+```{r}
+ggplot()+
+  aes(x = pred, y = df_test$qOut)+
+  geom_point()+
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed")+
+  labs(x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité")
+```
+
+
+Lorsque l'on examine l'importance des variables, on observe que la variable `qLab` exerce le plus grand impact dans le modèle Random Forest, tandis que la variable `qCap` a le moins d'influence. C'est très intéressant car la variable `qLab` est sytématiquement significative dans les modèles précédent.
+
+
+```{r}
+importance <- best_model$variable.importance |> 
+        as.data.frame()
+
+ggplot(data = importance,
+       aes(x = fct_reorder(row.names(importance),
+                           best_model$variable.importance),
+           y = best_model$variable.importance)) +
+  geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.5) +
+  labs(x = "Variables", y = "Importance", title = "Importance des variables") +
+  coord_flip()
+```
+
+En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une valeur ajoutée significative. Le modèle obtenu n'est pas plus performant que les modèles précédents, et nous perdons l'avantage de disposer de coefficients associés à chaque variable.
+
 
 ## Fonction de production CES
 
