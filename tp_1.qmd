@@ -602,6 +602,7 @@ apples <- apples |> mutate(
 ```{r}
 #| label: q_index_plots
 #| echo: false
+#| warning: false
 #| fig-align: center
 apples |>
     ggplot() +
@@ -611,11 +612,14 @@ apples |>
     labs(
         x = "Paasche Index",
         y = "Laspeyres Index",
-        title = "Relation entre Paasche & Laspeyres & Fisher",
-        caption = "Point Size : Fisher index value"
+        title = "Relation entre l'indice de Paasche & de Laspeyres"
     ) +
     theme(legend.position = "None")
 ```
+
+D'après cette visualisation on peut conclure que faire le choix de l'indice de *Paasche* ou de *Laspeyres* revient sensiblement à la même interprétation. 
+
+*Note* : Etant donné que l'indice de *Fisher* est une moyenne géométrique des deux indices, il n'est pas non plus nécessaire de le représenter puisque la relation linéaire entre les deux indices sera presque parfaite dans ce cas.
 
 ***
 
@@ -764,7 +768,7 @@ t_test <- t.test(advice, no_advice, var.equal = F)
 pval_t_test <- t_test$p.value
 ```
 
-$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value =$ `r  round(pval_t_test,2)` $> 0.05$, **on conserve donc l'hypothèse nulle $H_0$**.
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value =$ `r  round(pval_t_test,2)` $> 0.05$, **on conserve donc l'hypothèse nulle $H_0$, c'est à dire qu'il n'y a pas de différence significative dans les productivités globales quand le producteur est conseillé/ qu'il ne l'est pas.**
 
 
 ## Analyse exploratoire
@@ -968,15 +972,32 @@ Les résidus sont-ils normalement distribués ?
 
 ### Spécification de la forme fonctionnelle
 
-On peut utiliser un RESET TEST pour vérifier la forme fonctionnelle est bonne. 
+On peut utiliser un **RESET** test pour vérifier si la forme fonctionnelle linéaire est la bonne spécification.
+
+$$
+\begin{cases}
+H_0 : \text{La relation entre la variable a predire et un ou plusieurs predicteurs est lineaire} \\
+H_1 : \text{La relation entre la variable a predire et un ou plusieurs predicteurs est quadratique}
+\end{cases}
+$$
 
 ```{r}
-resettest(linreg_prod, power = 2)
-AIC(linreg_prod)
-logLik(linreg_prod) # extraire la log likelihood
+#| label: reset_linreg
+#| echo: false
+reset_linreg_prod <- resettest(linreg_prod, power = 2)
 ```
 
-Ici, on va préférer prendre une autre forme fonctionnelle
+$\Rightarrow$ la $p-value$ issue du test est $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire qu'on va préférer prendre une forme fonctionnelle incluant des effets quadratiques.**
+
+```{r}
+#| label: ppc_linreg_prod
+#| warning: false
+#| echo: false
+#| fig-align: center
+aic_linreg_prod <- AIC(linreg_prod)
+loglik_linreg_prod <- logLik(linreg_prod)[1]
+check_posterior_predictions(linreg_prod, verbose = FALSE)
+```
 
 ::: {.callout-caution}
 
@@ -1062,16 +1083,18 @@ cd_prod_2 <- lm(
     data = apples
 )
 
-check_posterior_predictions(cd_prod_2)
-check_posterior_predictions(linreg_prod)
-
 aic_cd_prod <- AIC(cd_prod_2)
 bic_cd_prod <- BIC(cd_prod_2)
 loglik_cd_prod <- logLik(cd_prod_2)[1]
 ```
 
-
 - La qualité d'ajustement du modèle a diminué, le $R^2_{adj}$ a baissé de près de 20% pour atteindre 0.585.
+
+```{r}
+#| label: cd_prod_posterior
+#| fig-align: center
+check_posterior_predictions(cd_prod_2)
+```
 
 ### Rendements d'échelle
 
@@ -1171,12 +1194,12 @@ cd_prod_margProducts$deriv |>
 # elasticities(cd_prod)
 ```
 
-- Par exemple, pour le producteur 1 : 
+- *Par exemple*, pour le producteur 1 : 
   - L'augmentation d'une unité de **capital** tout en maintenant constant le niveau de travail et de matériaux entraînera une augmentation de 6.23 unités d'output.
   - L'augmentation d'une unité de **travail** tout en maintenant constant le niveau de capital et de matériaux entrainera une augmentation de 6.03 unités d'output.
   - L'augmentation d'une unité de **matériaux** tout en maintenant constant le niveau de travail et de capital entrainera une augmentation de 59.09 unités d'output.
 
-> On remarque dans ce modèle que la productivité marginale des matériaux est supérieure à celle du capital et du travail **pour tous les producteurs**. De plus, aucune productivité marginale n'est négative
+> On remarque dans ce modèle que la productivité marginale des matériaux est supérieure à celle du capital et du travail **pour tous les producteurs**. De plus, aucune productivité marginale n'est négative.
 
 ## Fonction de production quadratique
 
@@ -1336,9 +1359,20 @@ quad_prod_margProducts |>
 ## Forme de la fonction
 
 $$
-\begin{gathered} ln(q_i) = \alpha + \sum_{k=1}^3\beta_kln(x_{ik})  \\ + \frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3 \beta_{kl}ln(x_{ik})ln(x_{il}) + ε_i
+\begin{gathered} \ln(q_i) = \alpha + \sum_{k=1}^3\beta_k\ln(x_{ik})\\ 
++ \frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3 \beta_{kl}\ln(x_{ik})ln(x_{il}) + ε_i
 \end{gathered}
 $$
+
+- La **fonction de production Translog** dans notre cas s'écrit donc sous la forme :
+
+$$
+\begin{gathered}\ln(q_{Out})​=α+β_1 \ln(​q_{Cap})​+β_2 \ln(​q_{Lab})​+β_3 \ln(​q_{Mat})\\
+​+\frac{1}{2}​(β_{11}\ln(​q^2_{Cap})​+β_{22}\ln(​q^2_{Lab})​+β_{33}\ln(​q^2_{Mat}))\\
+​+​β_{12}\ln(​q_{Cap}​q_{Lab})​+β_{13}​\ln(q_{Cap}​q_{Mat})​+β_{23}\ln(​q_{Lab}​q_{Mat})​+ε_i​
+\end{gathered}
+$$
+
 :::
 
 ```{r}
@@ -1352,10 +1386,8 @@ translog_prod <- translogEst(
 ```
 
 ```{r}
-summary(translog_prod)
-```
-
-```{r}
+#| label: translog_prod_table
+#| echo: false
 gtgazer(
     translog_prod,
     n_coef = 10,
@@ -1378,13 +1410,44 @@ gtgazer(
 ```
 
 ```{r}
-translogCheckMono(
+# summary(translog_prod)
+elasticities(translog_prod)
+
+# couts marginaux de l'output d’une fonction de production translog.
+margCost <- translogProdFuncMargCost(
+    yName = "qOut",
+    xNames = c("qCap", "qLab", "qMat"),
+    wNames = c("pCap", "pLab", "pMat"),
+    data = apples, coef = coef(translog_prod)
+)
+
+# si le cout marginal est négatif, alors il est plus avantageux de produire plus du coup.
+
+# si le cout marginal est trop grand, alors le producteur n'a pas forcément interet à produire plus.
+
+min(margCost)
+```
+
+```{r}
+mono <- translogCheckMono(
     c("qCap", "qLab", "qMat"),
     data = apples,
     coef = coef(translog_prod),
     increasing = TRUE
 )
+
+mono$increasing
+
+mono$obs |>
+    as_tibble() |>
+    group_by(value) |>
+    summarise(n = n())
 ```
+
+Cette fonction de production **Translog** augmente de manière monotone dans les facteurs de production `qCap`, `qLab`, `qMat`, dans 65,7% des observations
+
+sur les 140 présentes sur 92 observations 
+
 
 **Check whether the production function is quasiconcave**
 
@@ -1406,37 +1469,39 @@ Comme pour les fonction de production nous tentons d'expliquer la variable `qOut
 
 
 ```{r}
-apples_cut <- read_excel("data/appleProdFr86.xlsx")
-apples_cut <- apples_cut[,-c(1:6, 8:12)]
-split <- apples_cut |> initial_split(prop = 2/3)
+apples_cut <- readxl::read_excel("data/appleProdFr86.xlsx")
+apples_cut <- apples_cut[, -c(1:6, 8:12)]
+split <- apples_cut |> initial_split(prop = 2 / 3)
 df_train <- split |> training()
 df_test <- split |> testing()
 ```
 
 ```{r}
-#task <- makeRegrTask(data = df_train, target = "qOut")
+# task <- makeRegrTask(data = df_train, target = "qOut")
 
-#Tuning
-#estimateTimeTuneRanger(task)
-#rf <- tuneRanger(task,
+# Tuning
+# estimateTimeTuneRanger(task)
+# rf <- tuneRanger(task,
 #                 tune.parameters = c("mtry", "min.node.size"),
 #                 num.trees = 1000)
 
-#Best model
-#params <- rf$recommended.pars
-best_model <- ranger(formula = qOut ~.,
-       data = df_train,
-       mtry = 1, #params$mtry,
-       min.node.size = 2 , #params$min.node.size,
-       importance = "permutation")
+# Best model
+# params <- rf$recommended.pars
+best_model <- ranger(
+    formula = qOut ~ .,
+    data = df_train,
+    mtry = 1, # params$mtry,
+    min.node.size = 2, # params$min.node.size,
+    importance = "permutation"
+)
 
-#Prédiction
+# Prédiction
 pred <- predict(best_model, data = df_test)$predictions
 ```
 
 ```{r}
 metric_mae <- mean(abs(pred - df_test$qOut))
-metric_r2 <- 1 - sum((pred - df_test$qOut)^2) / sum((mean(df_test$qOut) - df_test$qOut)^2) 
+metric_r2 <- 1 - sum((pred - df_test$qOut)^2) / sum((mean(df_test$qOut) - df_test$qOut)^2)
 ```
 
 Le coefficient de détermination $R^2$ associé à ce modèle de Random Forest est de **`r round(metric_r2,3)`**, ce qui est similaire au score que nous avions obtenu précédemment.
@@ -1444,11 +1509,11 @@ Le coefficient de détermination $R^2$ associé à ce modèle de Random Forest e
 Avec le graphique ci-dessous, nous pouvons comparer les valeurs prédites et les valeurs réelles. La ligne rouge en pointillés indique que lorsque les points se trouvent dessus, le modèle a fait une prédiction parfaite. Cependant, si un point est au-dessus (resp. en-dessous) de la ligne, cela signifie que le modèle a sous-estimé (resp. surestimé) `qOut`.
 
 ```{r}
-ggplot()+
-  aes(x = pred, y = df_test$qOut)+
-  geom_point()+
-  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed")+
-  labs(x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité")
+ggplot() +
+    aes(x = pred, y = df_test$qOut) +
+    geom_point() +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité")
 ```
 
 
@@ -1456,16 +1521,22 @@ Lorsque l'on examine l'importance des variables, on observe que la variable `qLa
 
 
 ```{r}
-importance <- best_model$variable.importance |> 
-        as.data.frame()
+importance <- best_model$variable.importance |>
+    as.data.frame()
 
-ggplot(data = importance,
-       aes(x = fct_reorder(row.names(importance),
-                           best_model$variable.importance),
-           y = best_model$variable.importance)) +
-  geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.5) +
-  labs(x = "Variables", y = "Importance", title = "Importance des variables") +
-  coord_flip()
+ggplot(
+    data = importance,
+    aes(
+        x = fct_reorder(
+            row.names(importance),
+            best_model$variable.importance
+        ),
+        y = best_model$variable.importance
+    )
+) +
+    geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.5) +
+    labs(x = "Variables", y = "Importance", title = "Importance des variables") +
+    coord_flip()
 ```
 
 En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une valeur ajoutée significative. Le modèle obtenu n'est pas plus performant que les modèles précédents, et nous perdons l'avantage de disposer de coefficients associés à chaque variable.
@@ -1473,22 +1544,73 @@ En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une
 
 ## Fonction de production CES
 
-## Fonction de production SFA
+:::{.callout-tip}
 
-**TODO** tester avec plusieurs formes fonctionnelles ? Pour l'instant, ça a été fait avec une cobb douglas, mais on pourrait aussi le faire avec une translog.
+## Forme de la fonction
+
+$$
+\begin{gathered} q_i = \alpha + \sum_{k=1}^3\beta_k\ln(x_{ik})\\ 
++ \frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3 \beta_{kl}\ln(x_{ik})ln(x_{il}) + ε_i
+\end{gathered}
+$$
+
+- La **fonction de production CES** dans notre cas s'écrit donc sous la forme :
+
+$$
+q_{Out} = A[\delta_1 q_{Cap}^{-\rho} + \delta_2 q_{Lab}^{-\rho} + \delta_3 q_{Mat}^{-\rho}]^{-\frac{1}{\rho}}
+$$
+
+:::
+
+
+## Fonction de production SFA 
+
+Dans le modèle **SFA** *(Stochastic Frontier Analysis)*, on introduit un terme multiplicatif $TE_i$. Ce terme représente l’efficacité technique, définie comme le ratio d’output observé sur l’output
+maximum réalisable, soit : $TE_i = \frac{y_i}{y_i^*}$. 
+
+- On peut ré-écrire ce $TE_i$ sous la forme $\exp\left\{-u_i\right\}$.
+
+> **Utiliser un tel modèle va donc nous permettre de pouvoir estimer l'efficacité technique producteur par producteur.**
+
+*Note* : Nous pouvons utiliser plusieurs formes fonctionnelles pour ce modèle, sous la contrainte que notre variable à prédire soit mise sous forme logarithmique, ce qui élimine *de facto* les modèles de production linéaire et quadratique.
+
+::: {.callout-tip}
+
+## Forme de la fonction
+
+$$
+q_i = A\prod_{k=1}^3x_{ik}^{a_k}\cdot 
+\underbrace{\exp\left\{-u_i\right\} \cdot \exp\left\{v_i\right\}}_{\varepsilon_i}
+$$
+
+- La fonction de production **SFA Cobb-Douglas** dans notre cas s’écrit donc sous la forme :
+
+$$
+q_{Out} = A\cdot q_{Cap}^\alpha \cdot q_{Lab}^\beta \cdot q_{Mat}^\gamma \cdot \exp\left\{-u_i\right\} \cdot \exp\left\{v_i\right\}
+$$
+
+En linéarisant on obtient : 
+
+$$
+\ln(q_{out}) = \ln(A) + \alpha \cdot \ln(q_{Cap}) + \beta \cdot \ln(q_{Lab}) + \gamma \cdot \ln(q_{Mat}) + v_i - u_i
+$$
+
+:::
 
 ```{r}
 cd_sfa <- sfa(log(qOut) ~ log(qCap) + log(qLab) + log(qMat), data = apples)
 
 cd_sfa$olsParam # on retrouve les mêmes params que la cobb douglas ici
-cd_sfa
+summary(cd_sfa)
+```
 
+```{r}
 lrtest(cd_sfa) # interprétation : la SFA c'est wallah mieux que la Cobb Douglas classique.
 
 # Note => Faire plus de tests de comparaison de modèles : translog vs cobb douglas, etc...
 
-resettestFrontier(cd_sfa, power = 2) # notre modèle
-
+resettestFrontier(cd_sfa, power = 2)
+# notre modèle
 
 effic <- efficiencies(cd_sfa)
 
@@ -1501,6 +1623,8 @@ effic |>
     )
 
 ```
+
+$LR = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal{L}_2)$
 
 le `resettest` permet $\Rightarrow$ de tester si des combinaisons non-linéaires des variables explicatives aident à expliquer the response variable. 
 
@@ -1643,8 +1767,8 @@ gtgazer(
 
 ```{r}
 apples |>
-    select(pOut, qOut) |>
-    mutate(profit = pOut * qOut)
+    select(pOut, qOut, cost) |>
+    mutate(profit = (pOut * qOut) - cost)
 ```
 
 ## Infos sur le sujet | ROADMAP
