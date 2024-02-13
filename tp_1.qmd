@@ -687,7 +687,8 @@ apples |>
     ggplot() +
     aes(y = qOut, x = F_Index) +
     geom_point(colour = "darkorchid", alpha = alpha) +
-    labs(title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "", x = "Indice de Fisher")
+    labs(title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "", x = "Indice de Fisher",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 ```
 
 ::: {.callout-note}
@@ -722,7 +723,8 @@ apples |>
     ggplot() +
     aes(y = F_Index, x = adv_chr, fill = adv_chr) +
     geom_boxplot() +
-    labs(title = "Productivité globale en fonction du conseil ou non d'un laboratoire", x = "", y = "") +
+    labs(title = "Productivité globale en fonction du conseil ou non d'un laboratoire", x = "", y = "",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ") +
     theme(legend.position = "None")
 
 apples_grouped <- apples |>
@@ -824,6 +826,10 @@ fviz_pca_biplot(acp,
 
 **TODO : Customiser les couleurs de contributions et des inerties et tout**
 
+
+
+Lorsque l'on s'intéresse à la distribution de qOut et que l'on met ces valeurs en logarithme, on remarque une distribution proche d'une loi normale. Cette observation est confirmée par le test de Shapiro effectué ci-dessous. 
+
 ```{r}
 #| label: norm_density
 #| echo: false
@@ -838,7 +844,7 @@ apples |>
         color = "royalblue"
     ) +
     labs(
-        x = "log()",
+        x = "log(qOut)",
         y = "Fréquence"
     ) +
     theme(plot.title = element_markdown(face = "bold", size = 15)) +
@@ -858,11 +864,18 @@ apples |>
     )
 ```
 
-> Le test de normalité confirme statistiquement le fait que les données `log(qOut)` suivent une distribution normale (p.value > 0.05)
+$$
+\begin{cases}
+H_0: log(qOut)\text{ normalement distribuée} \\
+H_1:log(qOut)\text{ n'est pas normalement distribuée}
+\end{cases}
+$$
 
 ```{r}
-shapiro.test(log(apples$qOut))
+pval_shap_test <- shapiro.test(log(apples$qOut))$p.value
 ```
+
+> Le test de normalité confirme statistiquement le fait que les données `log(qOut)` suivent une distribution normale (p.value = `r  round(pval_shap_test,2)` > 0.05), $H_O$ n'est pas rejeté.
 
 ## Fonctions de production
 
@@ -1521,7 +1534,8 @@ ggplot() +
     aes(x = pred, y = df_test$qOut) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-    labs(x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité")
+    labs(x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 ```
 
 
@@ -1542,8 +1556,9 @@ ggplot(
         y = best_model$variable.importance
     )
 ) +
-    geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.5) +
-    labs(x = "Variables", y = "Importance", title = "Importance des variables") +
+    geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.3) +
+    labs(x = "Variables", y = "Importance", title = "Importance des variables",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ") +
     coord_flip()
 ```
 
@@ -1691,10 +1706,6 @@ cobb_cost <- translogCostEst(
 ```
 
 ```{r}
-summary(cobb_cost$est)
-```
-
-```{r}
 gtgazer(
     cobb_cost,
     n_coef = 4,
@@ -1711,13 +1722,23 @@ gtgazer(
 )
 ```
 
+-  Le coefficient de `qOut` est de 0.373. Cela signifie que si la variable `qOut` augmente d'une unité, le coût augmente d'environ 0.373 unités, toutes choses étant égales par ailleurs.
+
+- Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'une unité dans la variable `pLab` est associée à une augmentation d'environ 0.464 unités dans le coût, toutes choses étant égales par ailleurs.
+
+- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'une unité dans la variable `pMat` est associée à une augmentation d'environ 0.486 unités dans le coût, toutes choses étant égales par ailleurs.
+
+Seul le coefficient associé à la variable `pCap` n'est pas significatif, les autres le sont à 5 % et 10 % pour `pLab`.
+
 ### Fonction de coût Cobb-Douglas de court terme
+
+La fonction de court terme est définie par l'immutabilité d'au moins un facteur de production. Dans notre contexte, le capital est fixe, ce qui nous permet de la caractériser ainsi.
 
 :::{.callout-tip}
 
 ## Forme de la fonction
 $$
-c_i = A x_{i3}^{\alpha_3}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \epsilon_i
+c_i = A x_{i3}^{\alpha_4}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \epsilon_i
 $$
 
 :::
@@ -1727,7 +1748,7 @@ cobb_cost_ct <- translogCostEst(
     cName = "cost",
     yName = "qOut",
     pName = c("pLab", "pMat"),
-    fNames = "pCap",
+    fNames = "qCap",
     apples, homPrice = FALSE,
     linear = TRUE
 )
@@ -1745,14 +1766,15 @@ gtgazer(
     description = c(
         "- Constante du modèle",
         "- Coefficient associé à la variable `qOut`",
-        "- Coefficient associé à la variable `pCap`",
         "- Coefficient associé à la variable `pLab`",
-        "- Coefficient associé à la variable `pMat`"
+        "- Coefficient associé à la variable `pMat`",
+        "- Coefficient associé à la variable `qCap`"
     ),
     title = "**Fonction de coût Cobb Douglass de court terme**",
     bg_color = bg_color
 )
 ```
+
 
 ### Fonction de coût Translog
 
@@ -1764,6 +1786,7 @@ $$
 \begin{gathered}ln(c_i) = \alpha + \sum_{k=1}^3 \beta_k ln(p_{ik}) + \alpha_qln(q_i) \\ +\frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3\beta_{kl}ln(p_{ik})ln(p_{il})\frac{1}{2}\alpha_{q}(ln(q_i))^2 \\
 +\frac{1}{2}\sum_{k=1}^3\alpha_{kq}ln(p_{ik})ln(q_i)+\epsilon_i
 \end{gathered}
+
 $$
 
 :::
@@ -1778,16 +1801,40 @@ translog_cost <- translogCostEst(
 ```
 
 ```{r}
-summary(translog_cost$est)
-```
-
-```{r}
 gtgazer(
     translog_cost,
     n_coef = 9,
-    coefnames = c("$A$"),
+    coefnames = c("$\\alpha$",
+                  "$\\beta_1$",
+                  "$\\beta_2$",
+                  "$\\beta_2$",
+                  "$\\beta_4$",
+                  "$\\beta_{11}$",
+                  "$\\beta_{12}$",
+                  "$\\beta_{13}$",
+                  "$\\beta_{14}$",
+                  "$\\beta_{22}$",
+                  "$\\beta_{23}$",
+                  "$\\beta_{24}$",
+                  "$\\beta_{33}$",
+                  "$\\beta_{34}$",
+                  "$\\beta_{44}$"),
     description = c(
-        "- Constante du modèle"
+        "`Intercept`",
+        "`qOut`",
+        "`pCap`",
+        "`pLab`",
+        "`pMat`",
+        "`qOut²`",
+        "`qOut*pCap`",
+        "`qOut*pLab`",
+        "`qOut*pMat`",
+        "`pCap²`",
+        "`pCap*pLab`",
+        "`pCap*pMat`",
+        "`pLab²`",
+        "`pLab*pMat`",
+        "`pMat²`"
     ),
     title = "**Fonction de coût Translog**",
     bg_color = bg_color
