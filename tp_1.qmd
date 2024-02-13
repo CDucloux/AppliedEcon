@@ -152,7 +152,7 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         tab_footnote(footnote = md(glue::glue("$R^2_{{adj}}=$ {adj_r2}"))) |>
         tab_header(
             title = md(title),
-            subtitle = md(glue::glue("Variable dépendante : {dep_variable}"))
+            subtitle = md(glue::glue("Variable dépendante : `{dep_variable}`"))
         ) |>
         tab_options(
             table.background.color = bg_color
@@ -166,7 +166,7 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 
 :::{.callout-note}
 
-Tout au long de ce projet, nous utiliserons l'approche [`tidy`](https://www.tidyverse.org/) développée par @wickham2014 plutôt que l'approche `base R` pour manipuler nos données.
+Tout au long de ce projet, nous utiliserons l'approche [`tidy`](https://www.tidyverse.org/) développée par @wickham2014 plutôt que l'approche `base R` pour manipuler nos données. De plus, l'utilisation du package `micEcon` et de ses annexes nous facilitera grandement le travail d'estimation -- voir @henningsen2017.
 
 :::
 
@@ -184,6 +184,7 @@ library(FactoMineR)
 library(factoextra)
 library(ggtext)
 library(micEcon)
+library(micEconSNQP)
 library(micEconIndex)
 library(micEconCES)
 library(frontier)
@@ -768,7 +769,7 @@ t_test <- t.test(advice, no_advice, var.equal = F)
 pval_t_test <- t_test$p.value
 ```
 
-$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value =$ `r  round(pval_t_test,2)` $> 0.05$, **on conserve donc l'hypothèse nulle $H_0$, c'est à dire qu'il n'y a pas de différence significative dans les productivités globales quand le producteur est conseillé/ qu'il ne l'est pas.**
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r  round(pval_t_test,2)` $> 0.05$, **on conserve donc l'hypothèse nulle $H_0$, c'est à dire qu'il n'y a pas de différence significative dans les productivités globales quand le producteur est conseillé/ qu'il ne l'est pas.**
 
 
 ## Analyse exploratoire
@@ -866,6 +867,8 @@ shapiro.test(log(apples$qOut))
 
 ## Fonctions de production
 
+> Une fonction de production représente la relation entre les quantités des différents facteurs de production utilisés (ici `qCap`, `qLab`, `qMat`) et la quantité de production obtenue (ici `qOut`).
+
 ### Fonction de production linéaire
 
 :::{.callout-tip}
@@ -914,9 +917,9 @@ gtgazer(
 
 - Le coefficient associé à `qCap` est de 1.788, mais il n'est pas statistiquement significatif, ce qui suggère que la quantité de capital n'a pas une influence significative sur la production totale.
 
-- Le coefficient associé à `qLab` est de 11.831 avec un niveau de significativité très élevé, ce qui signifie que pour chaque unité supplémentaire de travail utilisée, la production totale augmente en moyenne de 11.831 unités. Cela revèle une fois de plus l'influence importante de la quantité de travail sur la quantité d'output.
+- Le coefficient associé à `qLab` est de 11.831 avec un niveau de significativité très élevé, ce qui signifie que pour chaque unité supplémentaire de travail utilisée, la production totale augmente en moyenne de 11.831 unités, *ceteris paribus*. Cela revèle une fois de plus l'influence importante de la quantité de travail sur la quantité d'output.
 
-- Le coefficient associé à `qMat` est de 46.668 avec un niveau de significativité très élevé, ce qui indique que pour chaque unité supplémentaire de matériaux utilisés, la production totale augmente en moyenne de 46.668 unités.
+- Le coefficient associé à `qMat` est de 46.668 avec un niveau de significativité très élevé, ce qui indique que pour chaque unité supplémentaire de matériaux utilisés, la production totale augmente en moyenne de 46.668 unités, *ceteris paribus*.
 
 $R^2_{adj}=$ 0.782 donc 78.2% de la variance de la production totale est expliquée par la variance des variables explicatives.
 
@@ -989,7 +992,7 @@ $$
 reset_linreg_prod <- resettest(linreg_prod, power = 2)
 ```
 
-$\Rightarrow$ la $p-value$ issue du test est $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire qu'on va préférer prendre une forme fonctionnelle incluant des effets quadratiques.**
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire qu'on va préférer prendre une forme fonctionnelle incluant des effets quadratiques.**
 
 ```{r}
 #| label: ppc_linreg_prod
@@ -1014,7 +1017,7 @@ $\Rightarrow$ Face à ces inconvénients du modèle linéaire, la fonction **Cob
 
 :::
 
-### Fonction de production Cobb-Douglas
+### Fonction de production Cobb-Douglas {#sec-cobb-prod}
 
 :::{.callout-tip}
 
@@ -1135,7 +1138,8 @@ gamma <- cd_prod$coef[4] |> unname()
 return_to_scale <- alpha + beta + gamma
 ```
 
-- On trouve donc que $\hat{\alpha} + \hat{\beta} + \hat{\gamma} =$ **`r round(return_to_scale, 2)`**, donc les rendements d'échelles sont croissants, c'est à dire que le processus de production est considéré comme particulièrement efficace et présente des *économies d’échelle*. 
+- On trouve que $\hat{\alpha} + \hat{\beta} + \hat{\gamma} =$ **`r round(return_to_scale, 2)`**, donc les rendements d'échelles sont croissants, c'est à dire que le processus de production est considéré comme particulièrement efficace et présente des *économies d’échelle*. Un accroissement identique de tous les facteurs conduit à un
+accroissement plus important de la production. 
 
 - Ces rendements d’échelle croissants sont souvent le résultat de coûts fixes élevés *(voir la @sec-desc-table pour s'en convaincre)*.
 
@@ -1148,8 +1152,6 @@ return_to_scale <- alpha + beta + gamma
 - Si l'elasticité de substitution n'est pas empiriquement estimable pour la **Cobb-Douglas**, celle-ci suppose implicitement que l'élasticité de substitution de *Allen* est égale à un, soit $\sigma_{\{\text{qCap, qLab, qMat}\}} = 1$. 
 
 - Cela implique une substitution **parfaite** entre les facteurs de production $q_{Cap}$, $q_{Lab}$ et $q_{Mat}$, **ce qui va clairement à l'encontre des résultats de la @sec-ap-prod**. 
-
-On ne peut donc pas étudier les substitutions entre les facteurs de production car la **Cobb-Douglas** ne permet tout simplement pas de le faire ! 
 
 #### Productivité marginale des inputs
 
@@ -1208,7 +1210,7 @@ cd_prod_margProducts$deriv |>
   - L'augmentation d'une unité de **travail** tout en maintenant constant le niveau de capital et de matériaux entrainera une augmentation de 6.03 unités d'output.
   - L'augmentation d'une unité de **matériaux** tout en maintenant constant le niveau de travail et de capital entrainera une augmentation de 59.09 unités d'output.
 
-> On remarque dans ce modèle que la productivité marginale des matériaux est supérieure à celle du capital et du travail **pour tous les producteurs**. De plus, aucune productivité marginale n'est négative.
+> On remarque dans ce modèle que la productivité marginale des matériaux est supérieure à celle du capital et du travail **pour tous les producteurs**. De plus, aucune productivité marginale n'est négative, c'est à dire que rajouter des quantités de n'importe quel input sans augmenter les autres résultera toujours en une augmentation de la production.
 
 ### Fonction de production quadratique
 
@@ -1352,6 +1354,8 @@ quad_prod_margProducts |>
     opt_interactive(use_highlight = TRUE)
 ```
 
+> Cette fois on remarque qu'il existe des **productivités marginales négatives**. Prenons l'exemple du producteur 1. Si celui-ci décide d'ajouter une unité de capital en maintenant les autres inputs constants (travail et matériaux), alors sa production va diminuer de 3.07 unités.
+
 #### Elasticité de substitution des inputs
 
 **TODO** : à confirmer ?
@@ -1417,50 +1421,114 @@ gtgazer(
 )
 ```
 
-```{r}
-# summary(translog_prod)
-elasticities(translog_prod)
+**Conséquence** : L'estimation par moindres carrés ordinaires d'une forme flexible comme la fonction *Translog* donne des résultats assez médiocres.
 
-# couts marginaux de l'output d’une fonction de production translog.
+En effet, seulement 3 coefficients sont significatifs au seuil de 10% :
+
+- `qCap×qLab`
+
+- `qCap×qMat`
+
+- `qLab²`
+
+- Le $R^2_{adj}$ est un peu plus elevé que celui de la *Cobb-Douglas*, autour de 0.6. 
+
+```{r}
+# TODO : elasticités à confirmer
+# elasticities(translog_prod)
+```
+
+#### Coût marginal de la production
+
+Le **coût marginal** correspond à la fabrication d'une unité supplémentaire d'output (`qOut`).
+
+La fonction `translogProdFuncMargCost` nous permet d'estimer ces coûts marginaux dans le cadre d'une fonction de production *Translog*.
+
+::: {.callout-note}
+
+## Informations sur les coûts marginaux
+
+- Si le coût marginal est très proche de 0, cela signifie que produire plus ne coûte que très peu cher au producteur. On s'attend donc à ce que les installations qui produisent le plus de pommes aient un coût marginal $\simeq 0$ grâce aux économies d'échelles qu'ils réalisent.
+
+- Si le coût marginal est $< 0$, cela signifie que produire moins coûte plus à l'entreprise. Dans ce cas l'entreprise a intérêt à produire plus jusqu'à atteindre un coût marginal proche de 0.
+
+- Si le coût marginal est $> 0$, alors il faut que le producteur compare le prix `pOut` qu'il peut obtenir et son coût marginal pour décider si il doit ou non produire davantage.
+
+:::
+
+```{r}
+#| label: margcost_chunk
+#| code-fold: false
 margCost <- translogProdFuncMargCost(
     yName = "qOut",
     xNames = c("qCap", "qLab", "qMat"),
     wNames = c("pCap", "pLab", "pMat"),
     data = apples, coef = coef(translog_prod)
 )
-
-# si le cout marginal est négatif, alors il est plus avantageux de produire plus du coup.
-
-# si le cout marginal est trop grand, alors le producteur n'a pas forcément interet à produire plus.
-
-min(margCost)
 ```
 
 ```{r}
+#| label: margcost_table
+#| echo: false
+margCosts <- margCost |>
+    as_tibble() |>
+    rowid_to_column() |>
+    rename(marg_cost = value)
+
+bind_cols(margCosts, apples |> select(pOut, qOut)) |>
+    gt() |>
+    cols_label(
+        rowid = md("$N$"),
+        marg_cost = md("$MC$"),
+        pOut = md("$p_{Out}$"),
+        qOut = md("$q_{Out}$"),
+    ) |>
+    fmt_number(-rowid, suffixing = TRUE) |>
+    fmt_integer(rowid, pattern = "Producteur {x}") |>
+    cols_align("center") |>
+    tab_header(
+        title = md("**Coût marginal de la production**"),
+        subtitle = md("*Note* : Quand $CM > p_{Out}$, la ligne est mise en surbrillance")
+    ) |>
+    data_color(
+        columns = marg_cost,
+        rows = marg_cost > pOut,
+        palette = "darkred",
+        alpha = 0.75
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+#### Vérification des conditions de régularité
+
+> **En premier lieu, on peut vérifier la monotonie de la fonction.**
+
+```{r}
+#| label: translog-mono
+#| code-fold: false
 mono <- translogCheckMono(
     c("qCap", "qLab", "qMat"),
     data = apples,
     coef = coef(translog_prod),
     increasing = TRUE
 )
-
-mono$increasing
-
-mono$obs |>
-    as_tibble() |>
-    group_by(value) |>
-    summarise(n = n())
 ```
 
-Cette fonction de production **Translog** augmente de manière monotone dans les facteurs de production `qCap`, `qLab`, `qMat`, dans 65,7% des observations
+$\Rightarrow$ Cette fonction de production **Translog** augmente de manière monotone dans les facteurs de production `qCap`, `qLab`, `qMat`, dans 65,7% des observations.
 
-sur les 140 présentes sur 92 observations 
+***
 
+> **En second lieu, on peut vérifier si la fonction de production est quasi-concave.**
 
-**Check whether the production function is quasiconcave**
+*La quasi-concavité garantit que la production réagit de manière décroissante aux augmentations marginales des inputs. Autrement dit, une augmentation marginale d'un input entraîne une augmentation marginale de la production qui décroît au fur et à mesure que cet input augmente.*
 
 ```{r}
-translogCheckCurvature(
+#| label: translog-curv
+#| code-fold: false
+curv <- translogCheckCurvature(
     c("qCap", "qLab", "qMat"),
     data = apples,
     coef = coef(translog_prod),
@@ -1468,6 +1536,8 @@ translogCheckCurvature(
     quasi = TRUE
 )
 ```
+
+$\Rightarrow$ Cette fonction de production **Translog** est quasi-concave dans 45% des observations.
 
 ### Machine Learning de production
 
@@ -1595,7 +1665,7 @@ L'élasticité de substitution est ici égale à **`r aes_ces_prod`**. Celle-ci 
 ### Fonction de production SFA 
 
 Dans le modèle **SFA** *(Stochastic Frontier Analysis)*, on introduit un terme multiplicatif $TE_i$. Ce terme représente l’efficacité technique, définie comme le ratio d’output observé sur l’output
-maximum réalisable, soit : $TE_i = \frac{y_i}{y_i^*}$. 
+maximum réalisable, soit : $TE_i = \frac{q_i}{q_i^*}$. 
 
 - On peut ré-écrire ce $TE_i$ sous la forme $\exp\left\{-u_i\right\}$.
 
@@ -1627,14 +1697,112 @@ $$
 :::
 
 ```{r}
+#| label: cd_sfa
+#| code-fold: false
 cd_sfa <- sfa(log(qOut) ~ log(qCap) + log(qLab) + log(qMat), data = apples)
-
-cd_sfa$olsParam # on retrouve les mêmes params que la cobb douglas ici
-summary(cd_sfa)
 ```
 
 ```{r}
-lrtest(cd_sfa) # interprétation : la SFA c'est wallah mieux que la Cobb Douglas classique.
+#| label: cd_sfa_table
+#| echo: false
+cd_sfa_loglik <- round(summary(cd_sfa)$mleLogl, 3)
+cd_sfa_mean_eff <- round(mean(efficiencies(cd_sfa)), 3)
+
+summary(cd_sfa)$mleParam |>
+    as_tibble() |>
+    slice(1:4) |>
+    add_column(
+        coefnames = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"),
+    ) |>
+    mutate(signif = makestars(`Pr(>|z|)`)) |>
+    gt(rowname_col = "coefnames") |>
+    fmt_number(decimals = 3) |>
+    cols_add(description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`"
+    )) |>
+    cols_move_to_start(description) |>
+    cols_hide("z value") |>
+    fmt_markdown(description) |>
+    fmt_markdown(coefnames) |>
+    fmt_markdown(signif) |>
+    cols_label(
+        description = md("**Description**"),
+        Estimate = md("**Coefficients**"),
+        `Std. Error` = md("**Ecart Type**"),
+        `Pr(>|z|)` = md("**Pvalues**"),
+        signif = md("**Significativité**")
+    ) |>
+    tab_header(
+        title = md("**Fonction de production Cobb-Douglas SFA**"),
+        subtitle = md("Variable dépendante : `qOut`")
+    ) |>
+    tab_footnote(
+        footnote = md("*Observations : 140*")
+    ) |>
+    tab_footnote(
+        footnote = md("***")
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue("**Log-Vraisemblance** $=$ {cd_sfa_loglik}"))
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue("**Efficacité moyenne** $=$ {cd_sfa_mean_eff}"))
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+- On remarque que les coefficients et les niveaux de significativité trouvés par l'estimateur du maximum de vraisemblance sont très proches de ceux de la Cobb-Douglas estimés par **OLS** dans la @sec-cobb-prod.
+
+#### Analyse de l'efficacité technique des producteurs
+
+L'efficacité technique moyenne des 140 producteurs est de 0.538, c'est à dire qu'il y a certainement un nombre important de producteurs *"inefficients"*.
+
+```{r}
+efficiencies <- efficiencies(cd_sfa) |> as_tibble()
+
+apples <- bind_cols(apples, efficiencies)
+
+apples
+
+apples |> select(efficiency, qOut)
+```
+
+**TODO : faire un ggplot des efficacités - distribution curve**
+
+#### Tests statistiques
+
+Le test de rapport de vraisemblance est un test d'hypothèse qui compare l'adéquation de l'ajustement de deux modèles afin de déterminer celui qui offre le meilleur ajustement. Dans notre cas, on veut comparer le modèle **Cobb-Douglas** estimé par *Moindres Carrés Ordinaires* et le modèle **Cobb-Douglas SFA** estimé par la méthode du *Maximum de Vraisemblance*. 
+
+Les hypothèses du test sont les suivantes :
+$$
+\begin{cases}
+H_0: \text{Modele } 1 \Rightarrow \text{Ordinary Least Squares}\\
+H_1: \text{Modele } 2 \Rightarrow \text{Error Component Frontier}
+\end{cases}
+$$
+
+```{r}
+#| label: lrtest_cd_sfa
+#| echo: false
+lrtest_cd_sfa <- lrtest(cd_sfa)
+likelihood_models <- round(lrtest_cd_sfa$LogLik, 3)
+pvalue_lrtest_cd_sfa <- round(lrtest_cd_sfa$`Pr(>Chisq)`[2], 3)
+```
+
+La statistique de test est $\lambda_{LR} = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal{L}_2)$
+
+- $\mathcal{L}_1 =$ `r likelihood_models[1]`
+
+- $\mathcal{L}_2 =$ `r likelihood_models[2]`
+
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r pvalue_lrtest_cd_sfa` $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire que le modèle de frontière de production Cobb-Douglas offre un meilleur ajustement.**
+
+```{r}
 
 # Note => Faire plus de tests de comparaison de modèles : translog vs cobb douglas, etc...
 
@@ -1650,10 +1818,8 @@ effic |>
         min_eff = min(efficiency),
         max_eff = max(efficiency)
     )
-
 ```
 
-$LR = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal{L}_2)$
 
 le `resettest` permet $\Rightarrow$ de tester si des combinaisons non-linéaires des variables explicatives aident à expliquer the response variable. 
 
@@ -1661,7 +1827,9 @@ The intuition behind the test is that if non-linear combinations of the explanat
 
 ## Fonctions de coût
 
-### Fonction de coût Cobb-Douglas
+> Une fonction de coût représente la relation entre les quantités des différents facteurs de production utilisés (ici `qCap`, `qLab`, `qMat`) et le coût total de production (ici `vCap + vLab + vMat`).
+
+### Fonction de coût Cobb-Douglas 
 
 :::{.callout-tip}
 
@@ -1797,30 +1965,56 @@ gtgazer(
 ## Profit des producteurs
 
 $$
-\prod = (p_{Out} \cdot q_{Out}) - (v_{Cap} + v_{Lab} + v_{Mat})
+\pi = (p_{Out} \cdot q_{Out}) - \overbrace{(v_{Cap} + v_{Lab} + v_{Mat})}^{cost}
 $$
 
 ```{r}
+#| label: profit_formula
+#| code-fold: false
+apples <- apples |> mutate(profit = (pOut * qOut) - cost)
+```
 
-profit <- apples |>
-    select(pOut, qOut, cost) |>
+::: {.callout-note}
+
+- Les producteurs dont le profit dépasse 5 millions sont mis en surbrillance [**verte**]{style="color:darkgreen;"}
+
+- Les producteurs dont le profit est négatif sont en subrillance [**rouge**]{style="color:darkred;"}
+
+:::
+
+```{r}
+#| label: profit_tbl
+#| echo: false
+
+profit_tbl <- apples |>
+    select(pOut, qOut, cost, profit) |>
     rowid_to_column() |>
-    mutate(profit = (pOut * qOut) - cost) |>
     arrange(desc(profit)) |>
     select(rowid, profit)
 
-profit |>
+profit_tbl |>
     gt() |>
     cols_label(
         rowid = md("$N$"),
-        profit = md("$\\prod$")
+        profit = md("$\\pi$")
     ) |>
     fmt_number(-rowid, suffixing = TRUE) |>
     fmt_integer(rowid, pattern = "Producteur {x}") |>
     cols_align("center") |>
     tab_header(
-        title = md("**Profit des producteurs de pommes**"),
-        subtitle = md("*Des résultats très variables*")
+        title = md("**Profit des producteurs de pommes**")
+    ) |>
+    data_color(
+        columns = profit,
+        rows = profit < 0,
+        palette = "darkred",
+        alpha = 0.75
+    ) |>
+    data_color(
+        columns = profit,
+        rows = profit > 5000000,
+        palette = "darkgreen",
+        alpha = 0.75
     ) |>
     tab_options(
         table.background.color = bg_color
@@ -1829,17 +2023,76 @@ profit |>
 ```
 
 ```{r}
-min_profit <- profit |> filter(profit == min(profit))
-max_profit <- profit |> filter(profit == max(profit))
-mean_profit <- profit |> summarise(mean = mean(profit))
-median_profit <- profit |> summarise(median = median(profit))
+#| label: profit_metrics
+#| echo: false
+
+negative_profit <- profit_tbl |>
+    filter(profit < 0) |>
+    count() |>
+    pull()
+
+five_million_profit <- profit_tbl |>
+    filter(profit > 5000000) |>
+    count() |>
+    pull()
+
+min_profit <- profit_tbl |> filter(profit == min(profit))
+max_profit <- profit_tbl |> filter(profit == max(profit))
+
+avg_profit <- profit_tbl |>
+    summarise(mean = mean(profit)) |>
+    pull() |>
+    round(2)
+
+median_profit <- profit_tbl |>
+    summarise(median = median(profit)) |>
+    pull() |>
+    round(2)
+
+min_producer <- min_profit |>
+    select(rowid) |>
+    pull()
+max_producer <- max_profit |>
+    select(rowid) |>
+    pull()
 ```
+
+**On remarque tout de même qu'il y a d'importantes différences de profits entre les producteurs.** 
+
+En effet, il y a **`r negative_profit`** producteurs de pommes ayant un profit négatif et **`r five_million_profit`** producteurs dont le profit est supérieur à 5 millions.
+
+- Le profit moyen $\bar\pi$ quant à lui est de **`r format(avg_profit, scientific = F)`**.
+
+- Le profit médian $\tilde\pi$, bien inférieur, est de **`r format(median_profit, scientific = F)`**.
+
+Enfin, le **producteur `r min_producer`** possède le profit le moins elevé du panel et le **producteur `r max_producer`** possède le profit le plus elevé *(voir le tableau ci-dessus)*.
+
+### Fonction de profit Quadratique Normalisée Symétrique
+
+Using the netput notation (where outputs are positive and inputs are treated as negative)
+
+```{r}
+apples_snq <- apples |>
+    select(N, pOut, pCap, pLab, pMat, qOut, qCap, qLab, qMat) |>
+    mutate(qCap = -qCap, qLab = -qLab, qMat = -qMat)
+
+snq_func <- snqProfitEst(
+    priceNames = c("pOut", "pCap", "pLab", "pMat"),
+    quantNames = c("qOut", "qCap", "qLab", "qMat"),
+    data = apples_snq,
+)
+
+snq_func_convex <- snqProfitImposeConvexity(snq_func)
+
+snq_func_convex
+
+predict(snq_func_convex)
+```
+
 
 ## Infos sur le sujet | ROADMAP
 
 $\Rightarrow$ Estimer des fonctions de cout, les rendements d'échelle, estimer somehow la leontieff généralisée, calculer le profit des producteurs, lien entre efficacité, vérifier hétéroscédasticité.
-
-La translog ayant bcp plus de paramètres, ce ne sera pas forcément la bonne forme fonctionnelle !
 
 - [ ] Expliquer les différences de profits entre les producteurs ? Regarder du coté des fonctions de profit.
 
@@ -1849,17 +2102,12 @@ Propriété de la CD => si la fonction de prod est cobb douglas, alors la foncti
 
 - [ ] Fonction de cout qui intègre que la quantité de capital ne change pas instantanément
 
-
 - [ ] Rendements d'échelle (somme des exposants) => on peut trouver ces rendements d'échelle soit en faisant la fonction de coût, ou la fonction de production. Mais on peut aussi les estimer grace à une fonction de demande
 
 **DEUX CHOSES ESSENTIELLES**
 
-
 - Il faut estimer les substitutions entre facteurs
 - Les rendements d'échelle
-
-Regarder le $\prod$
-
 
 ### Notes sur la translog Cost
 
