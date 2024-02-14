@@ -162,6 +162,13 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 }
 ```
 
+**TODOS**
+
+[ ] Changer l'écriture scientifique des labels des graphs vers une écriutre en millions (25M)
+[ ] Continuer les interprétations de la partie d'Analyse Exploratoire
+[ ] Pour la SFA, faire le blabla des inneficcacités $E(\epsilon|u)$
+[ ] Pour les fonctions de cout mettre les formes fonctionnelles avec nos 3 inputs à nous
+
 ## Imports et configuration
 
 :::{.callout-note}
@@ -691,6 +698,11 @@ apples |>
     labs(
         title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "", x = "Indice de Fisher",
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
     )
 ```
 
@@ -715,6 +727,7 @@ On pourrait penser que les producteurs qui ont été conseillés par des laborat
 ```{r}
 #| label: advice_boxplot
 #| echo: false
+#| fig-align: center
 apples <- apples |> mutate(
     adv_chr = case_when(
         adv == 0 ~ "No advice",
@@ -1702,27 +1715,37 @@ L'efficacité technique moyenne des 140 producteurs est de 0.538, c'est à dire 
 efficiencies <- efficiencies(cd_sfa) |> as_tibble()
 
 apples <- bind_cols(apples, efficiencies)
-
-apples
-
-apples |> select(efficiency, qOut)
 ```
-
-**TODO : faire un ggplot des efficacités - distribution curve**
 
 ```{r}
 #| label: efficiency_plot
 #| echo: false
 #| fig-align: center
+
 apples |>
+    filter(qOut < 15000000) |>
     ggplot() +
-    aes(y = efficiency, x = qOut) +
-    geom_point(colour = "darkorchid", alpha = alpha) +
+    aes(y = qOut, x = efficiency) +
+    geom_point(colour = "darkorchid") +
     labs(
-        title = "Relation entre l'efficacité des producteurs et l'output", y = "", x = "Production totale",
+        title = "Relation entre l'efficacité des producteurs et l'output",
+        subtitle = "Note : Les 2 producteurs dont la production est supérieure à 15M sont exclus",
+        x = "Efficacité",
+        y = expression(q[Out]),
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    geom_smooth(
+        method = "lm",
+        formula = y ~ x
     )
 ```
+
+- Le graphique ci-dessus nous permet de constater qu'en moyenne, plus la production est elevée, plus l'efficacité du producteur estimée par le modèle **Cobb-Douglas SFA**  le sera à son tour. Néanmoins, les producteurs dont la production est très importante ne sont pourtant pas les plus efficaces techniquement comme le montrent les quelques points qui se détachent de la tendance linéaire.
 
 #### Tests statistiques
 
@@ -1751,18 +1774,6 @@ La statistique de test est $\lambda_{LR} = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal
 - $\mathcal{L}_2 =$ `r likelihood_models[2]`
 
 $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r pvalue_lrtest_cd_sfa` $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire que le modèle de frontière de production Cobb-Douglas offre un meilleur ajustement.**
-
-```{r}
-effic <- efficiencies(cd_sfa)
-
-effic |>
-    as_tibble() |>
-    summarise(
-        mean_eff = mean(efficiency),
-        min_eff = min(efficiency),
-        max_eff = max(efficiency)
-    )
-```
 
 ### Machine Learning de production
 
@@ -1904,11 +1915,11 @@ gtgazer(
 )
 ```
 
--  Le coefficient de 0.373 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.373%, toutes choses étant égales par ailleurs.
+-  Le coefficient de 0.373 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.373%, *ceteris paribus*.
 
-- Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'1% du prix du travail cela entraine une augmentation d'environ 0.464% du coût total, toutes choses étant égales par ailleurs.
+- Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'1% du prix du travail cela entraine une augmentation d'environ 0.464% du coût total, *ceteris paribus*.
 
-- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux cela entraine une augmentation d'environ 0.486% du coût total, toutes choses étant égales par ailleurs.
+- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux cela entraine une augmentation d'environ 0.486% du coût total, *ceteris paribus*.
 
 Seul le coefficient associé à la variable `pCap` n'est pas significatif, les autres le sont à 5 % et 10 % pour `pLab`.
 
@@ -1926,17 +1937,22 @@ $$
 :::
 
 ```{r}
+#| label: cobb_cost_ct
+#| code-fold: false
 cobb_cost_ct <- translogCostEst(
     cName = "cost",
     yName = "qOut",
     pName = c("pLab", "pMat"),
     fNames = "qCap",
-    apples, homPrice = FALSE,
+    data = apples,
+    homPrice = FALSE,
     linear = TRUE
 )
 ```
 
 ```{r}
+#| label: cobb_cost_ct_table
+#| echo: false
 gtgazer(
     cobb_cost_ct,
     n_coef = 4,
@@ -1967,15 +1983,17 @@ gtgazer(
 ## Forme de la fonction
 
 $$
-\begin{gathered}\ln(c_i) = \alpha + \sum_{k=1}^3 \beta_k \ln(p_{ik}) + \alpha_q \ln(q_i) \\ +\frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3\beta_{kl}\ln(p_{ik})\ln(p_{il})\frac{1}{2}\alpha_{q}(\ln(q_i))^2 \\
+\begin{gathered}
+\ln(c_i) = \alpha + \sum_{k=1}^3 \beta_k \ln(p_{ik}) + \alpha_q \ln(q_i) \\ +\frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3\beta_{kl}\ln(p_{ik})\ln(p_{il})\frac{1}{2}\alpha_{q}(\ln(q_i))^2 \\
 +\frac{1}{2}\sum_{k=1}^3\alpha_{kq}\ln(p_{ik})\ln(q_i)+\varepsilon_i
 \end{gathered}
-
 $$
 
 :::
 
 ```{r}
+#| label: translog_cost_ct
+#| code-fold: false
 translog_cost <- translogCostEst(
     cName = "cost",
     yName = "qOut",
@@ -1985,6 +2003,8 @@ translog_cost <- translogCostEst(
 ```
 
 ```{r}
+#| label: translog_cost_ct_table
+#| echo: false
 gtgazer(
     translog_cost,
     n_coef = 9,
@@ -2135,70 +2155,85 @@ En effet, il y a **`r negative_profit`** producteurs de pommes ayant un profit n
 Enfin, le **producteur `r min_producer`** possède le profit le moins elevé du panel et le **producteur `r max_producer`** possède le profit le plus elevé *(voir le tableau ci-dessus)*.
 
 ```{r}
-pi_med_adv <- apples |> 
-  filter(adv == 1) |> 
-  pull(profit) |> 
-  median()
+pi_med_adv <- apples |>
+    filter(adv == 1) |>
+    pull(profit) |>
+    median()
 
-pi_med_noadv <- apples |> 
-  filter(adv == 0) |> 
-  pull(profit) |> 
-  median() 
+pi_med_noadv <- apples |>
+    filter(adv == 0) |>
+    pull(profit) |>
+    median()
 ```
 
 
 On remarque quelque chose d'intéressant : la médiane des profits des producteurs recevant des conseils est bien plus élevée (**`r format(pi_med_adv, scientific = F)`**) que ceux ne recevant pas de conseils (**`r format(pi_med_noadv, scientific = F)`**)
 
 ```{r}
+#| label: pi_advice
+#| echo: false
+#| fig-align: center
 apples |>
-  select(pOut, qOut, cost, profit,adv_chr) |> 
-  mutate(CA =pOut*qOut) |> 
-  ggplot()+
-  aes(y = profit, fill = adv_chr)+
-  geom_boxplot()+
-  labs(title = "Profit en fonction de conseils ou non.",
-       y = "Profit")
-
+    select(pOut, qOut, cost, profit, adv_chr) |>
+    mutate(CA = pOut * qOut) |>
+    ggplot() +
+    aes(y = profit, fill = adv_chr) +
+    geom_boxplot() +
+    labs(
+        title = "Profit en fonction de conseils ou non.",
+        y = "Profit"
+    )
 ```
 
-On peut également tracer les courbes correspondant aux recettes total (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimé de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les point ce sont les données réelles. On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
+On peut également tracer les courbes correspondant à la recette totale (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimée de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les points correspondent aux données réelles. On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
 
-On remarque visuellement les rendements d'échelle croissant plus un producteur produit et plus le profit devient important.
+*On remarque aussi visuellement les rendements d'échelle croissants*
 
 ```{r}
-qOut_MAX = 2000000
+#| label: pi_study_lines
+#| echo: false
+#| fig-align: center
+qOut_MAX <- 2000000
 
 etude <- apples |>
-  filter(qOut < qOut_MAX) |> 
-  select(pOut, qOut, cost, profit,adv_chr) |> 
-  mutate(RT =pOut*qOut) 
+    filter(qOut < qOut_MAX) |>
+    select(pOut, qOut, cost, profit, adv_chr) |>
+    mutate(RT = pOut * qOut)
 
 quadra_rt <- lm(RT ~ qOut + I(qOut^2), etude)
 quadra_rt_coefs <- quadra_rt$coefficients
-linear_ct <- lm(cost ~ qOut , etude)
+linear_ct <- lm(cost ~ qOut, etude)
 linear_ct_coefs <- linear_ct$coefficients
 
 qOut <- seq(0, qOut_MAX, by = 1000)
-func_RT <- quadra_rt_coefs[1] + quadra_rt_coefs[2]*qOut + quadra_rt_coefs[3]*qOut^2
-func_CT <- linear_ct_coefs[1] + linear_ct_coefs[2]*qOut
+func_RT <- quadra_rt_coefs[1] + quadra_rt_coefs[2] * qOut + quadra_rt_coefs[3] * qOut^2
+func_CT <- linear_ct_coefs[1] + linear_ct_coefs[2] * qOut
 
 datoum <- data.frame(qOut = qOut, func_RT = func_RT, func_CT = func_CT)
 
 ggplot() +
-  geom_line(data = datoum, aes(x = qOut, y = func_RT), color = "red", lwd = 1) +
-  geom_line(data = datoum, aes(x = qOut, y = func_CT), color = "blue", lwd = 1) +
-  geom_point(data = etude, aes(x = qOut, y = RT), alpha = 0.1, color = "red") +
-  geom_point(data = etude, aes(x = qOut, y = cost), alpha = 0.1, color = "blue") +
-  geom_ribbon(data = subset(datoum, func_RT > func_CT),
-              aes(x = qOut, ymin = func_CT, ymax = func_RT),
-              fill = "black", alpha = 0.1) +
-  labs(x = "qOut", y = "RT & CT", title = "Etude du profit")+
-  annotate(geom="text", x=qOut_MAX*0.95 , y=max(func_CT)*2, 
-           label="Profit", color="black", fontface = "bold")+
-  annotate(geom="text", x=qOut_MAX*0.95, y=max(func_RT), 
-           label="Recette Total", color="red") +
-  annotate(geom="text", x=qOut_MAX*0.95 , y=max(func_CT)*0.65, 
-           label="Coût Total", color="blue")
+    geom_line(data = datoum, aes(x = qOut, y = func_RT), color = "red", lwd = 1) +
+    geom_line(data = datoum, aes(x = qOut, y = func_CT), color = "blue", lwd = 1) +
+    geom_point(data = etude, aes(x = qOut, y = RT), alpha = 0.1, color = "red") +
+    geom_point(data = etude, aes(x = qOut, y = cost), alpha = 0.1, color = "blue") +
+    geom_ribbon(
+        data = subset(datoum, func_RT > func_CT),
+        aes(x = qOut, ymin = func_CT, ymax = func_RT),
+        fill = "black", alpha = 0.1
+    ) +
+    labs(x = "qOut", y = "RT & CT", title = "Etude du profit") +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 2,
+        label = "Profit", color = "black", fontface = "bold"
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_RT),
+        label = "Recette Totale", color = "red"
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 0.65,
+        label = "Coût Total", color = "blue"
+    )
 ```
 
 
