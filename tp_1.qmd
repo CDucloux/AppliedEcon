@@ -1904,11 +1904,11 @@ gtgazer(
 )
 ```
 
--  Le coefficient de `qOut` est de 0.373. Cela signifie que si la variable `qOut` augmente d'une unité, le coût augmente d'environ 0.373 unités, toutes choses étant égales par ailleurs.
+-  Le coefficient de 0.373 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.373%, toutes choses étant égales par ailleurs.
 
-- Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'une unité dans la variable `pLab` est associée à une augmentation d'environ 0.464 unités dans le coût, toutes choses étant égales par ailleurs.
+- Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'1% du prix du travail cela entraine une augmentation d'environ 0.464% du coût total, toutes choses étant égales par ailleurs.
 
-- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'une unité dans la variable `pMat` est associée à une augmentation d'environ 0.486 unités dans le coût, toutes choses étant égales par ailleurs.
+- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux cela entraine une augmentation d'environ 0.486% du coût total, toutes choses étant égales par ailleurs.
 
 Seul le coefficient associé à la variable `pCap` n'est pas significatif, les autres le sont à 5 % et 10 % pour `pLab`.
 
@@ -1937,10 +1937,6 @@ cobb_cost_ct <- translogCostEst(
 ```
 
 ```{r}
-summary(cobb_cost_ct$est)
-```
-
-```{r}
 gtgazer(
     cobb_cost_ct,
     n_coef = 4,
@@ -1956,6 +1952,12 @@ gtgazer(
     bg_color = bg_color
 )
 ```
+
+-  Le coefficient de 0.279 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.279%, toutes choses étant égales par ailleurs. On remarque donc que à court terme la variation de la quantité produite à moins d'impact sur le coût que à long terme.
+
+- Le coefficient de la variable `qCap` est de 0.237, cela indique qu'une augmentation de 1% de la quantité de capital entraine une augmentation de 0.237% du coût total. A court terme, la quantité de capital a un impact positif et significatif sur le coût de production.
+
+- Les prix du travail (`pLab`) et des matériaux (`pMat`) ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
 
 
 ### Fonction de coût Translog
@@ -2024,6 +2026,8 @@ gtgazer(
     bg_color = bg_color
 )
 ```
+
+- On remarque qu'avec une fonction de coût Translog, le coût dépend majoritairement de la quantité produite, on le constate avec la significativité des coefficients associés à `qOut` et `qOut^2`.
 
 ## Profit des producteurs
 
@@ -2129,6 +2133,74 @@ En effet, il y a **`r negative_profit`** producteurs de pommes ayant un profit n
 - Le profit médian $\tilde\pi$, bien inférieur, est de **`r format(median_profit, scientific = F)`**.
 
 Enfin, le **producteur `r min_producer`** possède le profit le moins elevé du panel et le **producteur `r max_producer`** possède le profit le plus elevé *(voir le tableau ci-dessus)*.
+
+```{r}
+pi_med_adv <- apples |> 
+  filter(adv == 1) |> 
+  pull(profit) |> 
+  median()
+
+pi_med_noadv <- apples |> 
+  filter(adv == 0) |> 
+  pull(profit) |> 
+  median() 
+```
+
+
+On remarque quelque chose d'intéressant : la médiane des profits des producteurs recevant des conseils est bien plus élevée (**`r format(pi_med_adv, scientific = F)`**) que ceux ne recevant pas de conseils (**`r format(pi_med_noadv, scientific = F)`**)
+
+```{r}
+apples |>
+  select(pOut, qOut, cost, profit,adv_chr) |> 
+  mutate(CA =pOut*qOut) |> 
+  ggplot()+
+  aes(y = profit, fill = adv_chr)+
+  geom_boxplot()+
+  labs(title = "Profit en fonction de conseils ou non.",
+       y = "Profit")
+
+```
+
+On peut également tracer les courbes correspondant aux recettes total (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimé de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les point ce sont les données réelles. On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
+
+On remarque visuellement les rendements d'échelle croissant plus un producteur produit et plus le profit devient important.
+
+```{r}
+qOut_MAX = 2000000
+
+etude <- apples |>
+  filter(qOut < qOut_MAX) |> 
+  select(pOut, qOut, cost, profit,adv_chr) |> 
+  mutate(RT =pOut*qOut) 
+
+quadra_rt <- lm(RT ~ qOut + I(qOut^2), etude)
+quadra_rt_coefs <- quadra_rt$coefficients
+linear_ct <- lm(cost ~ qOut , etude)
+linear_ct_coefs <- linear_ct$coefficients
+
+qOut <- seq(0, qOut_MAX, by = 1000)
+func_RT <- quadra_rt_coefs[1] + quadra_rt_coefs[2]*qOut + quadra_rt_coefs[3]*qOut^2
+func_CT <- linear_ct_coefs[1] + linear_ct_coefs[2]*qOut
+
+datoum <- data.frame(qOut = qOut, func_RT = func_RT, func_CT = func_CT)
+
+ggplot() +
+  geom_line(data = datoum, aes(x = qOut, y = func_RT), color = "red", lwd = 1) +
+  geom_line(data = datoum, aes(x = qOut, y = func_CT), color = "blue", lwd = 1) +
+  geom_point(data = etude, aes(x = qOut, y = RT), alpha = 0.1, color = "red") +
+  geom_point(data = etude, aes(x = qOut, y = cost), alpha = 0.1, color = "blue") +
+  geom_ribbon(data = subset(datoum, func_RT > func_CT),
+              aes(x = qOut, ymin = func_CT, ymax = func_RT),
+              fill = "black", alpha = 0.1) +
+  labs(x = "qOut", y = "RT & CT", title = "Etude du profit")+
+  annotate(geom="text", x=qOut_MAX*0.95 , y=max(func_CT)*2, 
+           label="Profit", color="black", fontface = "bold")+
+  annotate(geom="text", x=qOut_MAX*0.95, y=max(func_RT), 
+           label="Recette Total", color="red") +
+  annotate(geom="text", x=qOut_MAX*0.95 , y=max(func_CT)*0.65, 
+           label="Coût Total", color="blue")
+```
+
 
 ### Fonction de profit Quadratique Normalisée Symétrique
 
