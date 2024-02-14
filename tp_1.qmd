@@ -688,8 +688,10 @@ apples |>
     ggplot() +
     aes(y = qOut, x = F_Index) +
     geom_point(colour = "darkorchid", alpha = alpha) +
-    labs(title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "", x = "Indice de Fisher",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
+    labs(
+        title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "", x = "Indice de Fisher",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
 ```
 
 ::: {.callout-note}
@@ -724,8 +726,10 @@ apples |>
     ggplot() +
     aes(y = F_Index, x = adv_chr, fill = adv_chr) +
     geom_boxplot() +
-    labs(title = "Productivité globale en fonction du conseil ou non d'un laboratoire", x = "", y = "",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ") +
+    labs(
+        title = "Productivité globale en fonction du conseil ou non d'un laboratoire", x = "", y = "",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
     theme(legend.position = "None")
 
 apples_grouped <- apples |>
@@ -867,8 +871,8 @@ apples |>
 
 $$
 \begin{cases}
-H_0: log(qOut)\text{ normalement distribuée} \\
-H_1:log(qOut)\text{ n'est pas normalement distribuée}
+H_0: \ln(q_{Out})\text{ suit une distribution normale} \\
+H_1: \ln(q_{Out})\text{ ne suit pas une distribution normale}
 \end{cases}
 $$
 
@@ -876,7 +880,7 @@ $$
 pval_shap_test <- shapiro.test(log(apples$qOut))$p.value
 ```
 
-> Le test de normalité confirme statistiquement le fait que les données `log(qOut)` suivent une distribution normale (p.value = `r  round(pval_shap_test,2)` > 0.05), $H_O$ n'est pas rejeté.
+$\Rightarrow$ Au seuil $\alpha = 5\%$, le test de *Shapiro* confirme statistiquement le fait que les données `ln(qOut)` suivent une distribution normale avec une $p-value$ = `r  round(pval_shap_test,2)` soit $> 0.05$, donc $H_0$ n'est pas rejeté.
 
 ## Fonctions de production
 
@@ -1552,89 +1556,6 @@ curv <- translogCheckCurvature(
 
 $\Rightarrow$ Cette fonction de production **Translog** est quasi-concave dans 45% des observations.
 
-### Machine Learning de production
-
-À titre expérimental, il est envisageable d'explorer l'utilisation du Machine Learning pour étudier la production de pommes. Cependant, compte tenu du peu de données disponibles, cette approche n'est pas idéale. Nous envisageons néanmoins d'appliquer un algorithme de Random Forest. Ce modèle permet d'extraire l'importance des variables, offrant ainsi une certaine transparence dans le fonctionnement de ce modèle de Machine Learning souvent perçu comme une boîte noire.
-
-Comme pour les fonction de production nous tentons d'expliquer la variable `qOut` à partir des variables `qLab`, `qCap` et `qMat`.
-
-
-```{r}
-apples_cut <- readxl::read_excel("data/appleProdFr86.xlsx")
-apples_cut <- apples_cut[, -c(1:6, 8:12)]
-split <- apples_cut |> initial_split(prop = 2 / 3)
-df_train <- split |> training()
-df_test <- split |> testing()
-```
-
-```{r}
-# task <- makeRegrTask(data = df_train, target = "qOut")
-
-# Tuning
-# estimateTimeTuneRanger(task)
-# rf <- tuneRanger(task,
-#                 tune.parameters = c("mtry", "min.node.size"),
-#                 num.trees = 1000)
-
-# Best model
-# params <- rf$recommended.pars
-best_model <- ranger(
-    formula = qOut ~ .,
-    data = df_train,
-    mtry = 1, # params$mtry,
-    min.node.size = 2, # params$min.node.size,
-    importance = "permutation"
-)
-
-# Prédiction
-pred <- predict(best_model, data = df_test)$predictions
-```
-
-```{r}
-metric_mae <- mean(abs(pred - df_test$qOut))
-metric_r2 <- 1 - sum((pred - df_test$qOut)^2) / sum((mean(df_test$qOut) - df_test$qOut)^2)
-```
-
-Le coefficient de détermination $R^2$ associé à ce modèle de Random Forest est de **`r round(metric_r2,3)`**, ce qui est similaire au score que nous avions obtenu précédemment.
-
-Avec le graphique ci-dessous, nous pouvons comparer les valeurs prédites et les valeurs réelles. La ligne rouge en pointillés indique que lorsque les points se trouvent dessus, le modèle a fait une prédiction parfaite. Cependant, si un point est au-dessus (resp. en-dessous) de la ligne, cela signifie que le modèle a sous-estimé (resp. surestimé) `qOut`.
-
-```{r}
-ggplot() +
-    aes(x = pred, y = df_test$qOut) +
-    geom_point() +
-    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-    labs(x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
-```
-
-
-Lorsque l'on examine l'importance des variables, on observe que la variable `qLab` exerce le plus grand impact dans le modèle Random Forest, tandis que la variable `qCap` a le moins d'influence. C'est très intéressant car la variable `qLab` est sytématiquement significative dans les modèles précédent.
-
-
-```{r}
-importance <- best_model$variable.importance |>
-    as.data.frame()
-
-ggplot(
-    data = importance,
-    aes(
-        x = fct_reorder(
-            row.names(importance),
-            best_model$variable.importance
-        ),
-        y = best_model$variable.importance
-    )
-) +
-    geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.3) +
-    labs(x = "Variables", y = "Importance", title = "Importance des variables",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ") +
-    coord_flip()
-```
-
-En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une valeur ajoutée significative. Le modèle obtenu n'est pas plus performant que les modèles précédents, et nous perdons l'avantage de disposer de coefficients associés à chaque variable.
-
-
 ### Fonction de production CES
 
 :::{.callout-tip}
@@ -1789,6 +1710,20 @@ apples |> select(efficiency, qOut)
 
 **TODO : faire un ggplot des efficacités - distribution curve**
 
+```{r}
+#| label: efficiency_plot
+#| echo: false
+#| fig-align: center
+apples |>
+    ggplot() +
+    aes(y = efficiency, x = qOut) +
+    geom_point(colour = "darkorchid", alpha = alpha) +
+    labs(
+        title = "Relation entre l'efficacité des producteurs et l'output", y = "", x = "Production totale",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
+```
+
 #### Tests statistiques
 
 Le test de rapport de vraisemblance est un test d'hypothèse qui compare l'adéquation de l'ajustement de deux modèles afin de déterminer celui qui offre le meilleur ajustement. Dans notre cas, on veut comparer le modèle **Cobb-Douglas** estimé par *Moindres Carrés Ordinaires* et le modèle **Cobb-Douglas SFA** estimé par la méthode du *Maximum de Vraisemblance*. 
@@ -1818,12 +1753,6 @@ La statistique de test est $\lambda_{LR} = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal
 $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r pvalue_lrtest_cd_sfa` $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire que le modèle de frontière de production Cobb-Douglas offre un meilleur ajustement.**
 
 ```{r}
-
-# Note => Faire plus de tests de comparaison de modèles : translog vs cobb douglas, etc...
-
-resettestFrontier(cd_sfa, power = 2)
-# notre modèle
-
 effic <- efficiencies(cd_sfa)
 
 effic |>
@@ -1835,27 +1764,97 @@ effic |>
     )
 ```
 
+### Machine Learning de production
 
-le `resettest` permet $\Rightarrow$ de tester si des combinaisons non-linéaires des variables explicatives aident à expliquer the response variable. 
+À titre expérimental, il est envisageable d'explorer l'utilisation du Machine Learning pour étudier la production de pommes. Cependant, compte tenu du peu de données disponibles, cette approche n'est pas idéale. Nous envisageons néanmoins d'appliquer un algorithme de Random Forest. Ce modèle permet d'extraire l'importance des variables, offrant ainsi une certaine transparence dans le fonctionnement de ce modèle de Machine Learning souvent perçu comme une boîte noire.
 
-The intuition behind the test is that if non-linear combinations of the explanatory variables have any power in explaining the response variable, the model is misspecified in the sense that the data generating process might be better approximated by a polynomial or another non-linear functional form. 
+Comme pour les fonction de production nous tentons d'expliquer la variable `qOut` à partir des variables `qLab`, `qCap` et `qMat`.
+
+
+```{r}
+apples_cut <- readxl::read_excel("data/appleProdFr86.xlsx")
+apples_cut <- apples_cut[, -c(1:6, 8:12)]
+split <- apples_cut |> initial_split(prop = 2 / 3)
+df_train <- split |> training()
+df_test <- split |> testing()
+```
+
+```{r}
+# task <- makeRegrTask(data = df_train, target = "qOut")
+
+# Tuning
+# estimateTimeTuneRanger(task)
+# rf <- tuneRanger(task,
+#                 tune.parameters = c("mtry", "min.node.size"),
+#                 num.trees = 1000)
+
+# Best model
+# params <- rf$recommended.pars
+best_model <- ranger(
+    formula = qOut ~ .,
+    data = df_train,
+    mtry = 1, # params$mtry,
+    min.node.size = 2, # params$min.node.size,
+    importance = "permutation"
+)
+
+# Prédiction
+pred <- predict(best_model, data = df_test)$predictions
+```
+
+```{r}
+metric_mae <- mean(abs(pred - df_test$qOut))
+metric_r2 <- 1 - sum((pred - df_test$qOut)^2) / sum((mean(df_test$qOut) - df_test$qOut)^2)
+```
+
+Le coefficient de détermination $R^2$ associé à ce modèle de Random Forest est de **`r round(metric_r2,3)`**, ce qui est similaire au score que nous avions obtenu précédemment.
+
+Avec le graphique ci-dessous, nous pouvons comparer les valeurs prédites et les valeurs réelles. La ligne rouge en pointillés indique que lorsque les points se trouvent dessus, le modèle a fait une prédiction parfaite. Cependant, si un point est au-dessus (resp. en-dessous) de la ligne, cela signifie que le modèle a sous-estimé (resp. surestimé) `qOut`.
+
+```{r}
+ggplot() +
+    aes(x = pred, y = df_test$qOut) +
+    geom_point() +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(
+        x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
+```
+
+
+Lorsque l'on examine l'importance des variables, on observe que la variable `qLab` exerce le plus grand impact dans le modèle Random Forest, tandis que la variable `qCap` a le moins d'influence. C'est très intéressant car la variable `qLab` est sytématiquement significative dans les modèles précédent.
+
+
+```{r}
+importance <- best_model$variable.importance |>
+    as.data.frame()
+
+ggplot(
+    data = importance,
+    aes(
+        x = fct_reorder(
+            row.names(importance),
+            best_model$variable.importance
+        ),
+        y = best_model$variable.importance
+    )
+) +
+    geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.3) +
+    labs(
+        x = "Variables", y = "Importance", title = "Importance des variables",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    coord_flip()
+```
+
+En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une valeur ajoutée significative. Le modèle obtenu n'est pas plus performant que les modèles précédents, et nous perdons l'avantage de disposer de coefficients associés à chaque variable.
 
 ## Fonctions de coût
 
 > Une fonction de coût représente la relation entre les quantités des différents facteurs de production utilisés (ici `qCap`, `qLab`, `qMat`) et le coût total de production (ici `vCap + vLab + vMat`).
 
-### Fonction de coût Cobb-Douglas 
-
-:::{.callout-tip}
-
-## Forme de la fonction
-$$
-c_i = A \prod_{k=1}^{3} p_{ik}^{\alpha_k}q_i^{\alpha_y} \epsilon_i
-$$
-
-:::
-
-> Calculons d'abord le coût total des inputs, c'est à dire $v_{Cap} + v_{Lab} + v_{Mat}$.
+Calculons d'abord le coût total des inputs, c'est à dire $v_{Cap} + v_{Lab} + v_{Mat}$.
 
 ```{r}
 #| label: total_cost
@@ -1863,7 +1862,20 @@ $$
 apples <- apples |> mutate(cost = vCap + vLab + vMat)
 ```
 
+### Fonction de coût Cobb-Douglas 
+
+:::{.callout-tip}
+
+## Forme de la fonction
+$$
+c_i = A \prod_{k=1}^{3} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
+$$
+
+:::
+
 ```{r}
+#| label: cobb_cost
+#| code-fold: false
 cobb_cost <- translogCostEst(
     cName = "cost",
     yName = "qOut",
@@ -1874,6 +1886,8 @@ cobb_cost <- translogCostEst(
 ```
 
 ```{r}
+#| label: cobb_cost_table
+#| echo: false
 gtgazer(
     cobb_cost,
     n_coef = 4,
@@ -1906,7 +1920,7 @@ La fonction de court terme est définie par l'immutabilité d'au moins un facteu
 
 ## Forme de la fonction
 $$
-c_i = A x_{i3}^{\alpha_4}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \epsilon_i
+c_i = A x_{i3}^{\alpha_4}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
 $$
 
 :::
@@ -1951,8 +1965,8 @@ gtgazer(
 ## Forme de la fonction
 
 $$
-\begin{gathered}ln(c_i) = \alpha + \sum_{k=1}^3 \beta_k ln(p_{ik}) + \alpha_qln(q_i) \\ +\frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3\beta_{kl}ln(p_{ik})ln(p_{il})\frac{1}{2}\alpha_{q}(ln(q_i))^2 \\
-+\frac{1}{2}\sum_{k=1}^3\alpha_{kq}ln(p_{ik})ln(q_i)+\epsilon_i
+\begin{gathered}\ln(c_i) = \alpha + \sum_{k=1}^3 \beta_k \ln(p_{ik}) + \alpha_q \ln(q_i) \\ +\frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3\beta_{kl}\ln(p_{ik})\ln(p_{il})\frac{1}{2}\alpha_{q}(\ln(q_i))^2 \\
++\frac{1}{2}\sum_{k=1}^3\alpha_{kq}\ln(p_{ik})\ln(q_i)+\varepsilon_i
 \end{gathered}
 
 $$
@@ -1972,21 +1986,23 @@ translog_cost <- translogCostEst(
 gtgazer(
     translog_cost,
     n_coef = 9,
-    coefnames = c("$\\alpha$",
-                  "$\\beta_1$",
-                  "$\\beta_2$",
-                  "$\\beta_2$",
-                  "$\\beta_4$",
-                  "$\\beta_{11}$",
-                  "$\\beta_{12}$",
-                  "$\\beta_{13}$",
-                  "$\\beta_{14}$",
-                  "$\\beta_{22}$",
-                  "$\\beta_{23}$",
-                  "$\\beta_{24}$",
-                  "$\\beta_{33}$",
-                  "$\\beta_{34}$",
-                  "$\\beta_{44}$"),
+    coefnames = c(
+        "$\\alpha$",
+        "$\\beta_1$",
+        "$\\beta_2$",
+        "$\\beta_2$",
+        "$\\beta_4$",
+        "$\\beta_{11}$",
+        "$\\beta_{12}$",
+        "$\\beta_{13}$",
+        "$\\beta_{14}$",
+        "$\\beta_{22}$",
+        "$\\beta_{23}$",
+        "$\\beta_{24}$",
+        "$\\beta_{33}$",
+        "$\\beta_{34}$",
+        "$\\beta_{44}$"
+    ),
     description = c(
         "`Intercept`",
         "`qOut`",
@@ -2023,9 +2039,9 @@ apples <- apples |> mutate(profit = (pOut * qOut) - cost)
 
 ::: {.callout-note}
 
-- Les producteurs dont le profit dépasse 5 millions sont mis en surbrillance [**verte**]{style="color:darkgreen;"}
+- Les producteurs dont le profit dépasse 5 millions sont mis en surbrillance [**verte**]{style="color:darkgreen;"}.
 
-- Les producteurs dont le profit est négatif sont en subrillance [**rouge**]{style="color:darkred;"}
+- Les producteurs dont le profit est négatif sont en mis subrillance [**rouge**]{style="color:darkred;"}.
 
 :::
 
