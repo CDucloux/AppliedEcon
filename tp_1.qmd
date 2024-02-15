@@ -164,10 +164,11 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 
 **TODOS**
 
-[ ] Changer l'écriture scientifique des labels des graphs vers une écriutre en millions (25M)
-[ ] Continuer les interprétations de la partie d'Analyse Exploratoire
-[ ] Pour la SFA, faire le blabla des inneficcacités $E(\epsilon|u)$
-[ ] Pour les fonctions de cout mettre les formes fonctionnelles avec nos 3 inputs à nous
+- [x] Changer l'écriture scientifique des labels des graphs vers une écriutre en millions (25M)
+- [ ] Continuer les interprétations de la partie d'Analyse Exploratoire
+- [x] Pour la SFA, faire le blabla des inneficcacités $E(\epsilon|u)$
+- [ ] Pour les fonctions de cout mettre les formes fonctionnelles avec nos 3 inputs à nous
+- [ ] Mettre les noms Corentin et Guillaume dans tous les plots 😎
 
 ## Imports et configuration
 
@@ -521,17 +522,32 @@ QC <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Cap) +
     geom_point(colour = "darkgreen", alpha = alpha) +
-    labs(x = expression(AP[Cap]), y = "")
+    labs(x = expression(AP[Cap]), y = "") +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
 QL <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Lab) +
     geom_point(colour = "orange", alpha = alpha) +
-    labs(x = expression(AP[Lab]), y = "")
+    labs(x = expression(AP[Lab]), y = "") +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
 QM <- apples |>
     ggplot() +
     aes(y = qOut, x = AP_Mat) +
     geom_point(colour = "darkorchid", alpha = alpha) +
-    labs(x = expression(AP[Mat]), y = "")
+    labs(x = expression(AP[Mat]), y = "") +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
 
 qOut_prod_plots <- (QC + QL) / QM
 
@@ -1711,16 +1727,21 @@ summary(cd_sfa)$mleParam |>
 
 L'efficacité technique moyenne des 140 producteurs est de 0.538, c'est à dire qu'il y a certainement un nombre important de producteurs *"inefficients"*.
 
-```{r}
-efficiencies <- efficiencies(cd_sfa) |> as_tibble()
+En utilisant l’espérance conditionnelle $E(\exp(−u_i)|\epsilon_i)$, on peut estimer le score d’efficacité
+pour chaque observation. Dans ce cas, les estimations d'efficacité ont des valeurs comprises entre zéro et un, où un indique que le producteur de pommes est **pleinement efficace** dans sa production et zéro indique que le producteur est **totalement inefficace**.
 
-apples <- bind_cols(apples, efficiencies)
+```{r}
+#| label: effic
+#| code-fold: false
+efficiencies <- efficiencies(cd_sfa) |> as_tibble()
 ```
 
 ```{r}
 #| label: efficiency_plot
 #| echo: false
 #| fig-align: center
+
+apples <- bind_cols(apples, efficiencies)
 
 apples |>
     filter(qOut < 15000000) |>
@@ -1777,20 +1798,32 @@ $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à
 
 ### Machine Learning de production
 
-À titre expérimental, il est envisageable d'explorer l'utilisation du Machine Learning pour étudier la production de pommes. Cependant, compte tenu du peu de données disponibles, cette approche n'est pas idéale. Nous envisageons néanmoins d'appliquer un algorithme de Random Forest. Ce modèle permet d'extraire l'importance des variables, offrant ainsi une certaine transparence dans le fonctionnement de ce modèle de Machine Learning souvent perçu comme une boîte noire.
+::: {.callout-tip}
+
+## Random Forest
+
+À titre expérimental, il est envisageable d'explorer l'utilisation du **Machine Learning** pour étudier la production de pommes. 
+
+Cependant, compte tenu du peu de données disponibles, cette approche n'est pas idéale. Nous envisageons néanmoins d'appliquer un algorithme de **Random Forest**. Ce modèle permet d'extraire l'importance des variables, offrant ainsi une certaine transparence dans le fonctionnement de ce modèle de Machine Learning souvent perçu comme une boîte noire.
 
 Comme pour les fonction de production nous tentons d'expliquer la variable `qOut` à partir des variables `qLab`, `qCap` et `qMat`.
 
+:::
+
+- Effectuons un **train-test split** sur nos données.
 
 ```{r}
-apples_cut <- readxl::read_excel("data/appleProdFr86.xlsx")
-apples_cut <- apples_cut[, -c(1:6, 8:12)]
-split <- apples_cut |> initial_split(prop = 2 / 3)
+#| label: machine_learning
+#| code-fold: false
+apples_ML <- apples |> select(qOut, qCap, qLab, qMat)
+split <- apples_ML |> initial_split(prop = 2 / 3)
 df_train <- split |> training()
 df_test <- split |> testing()
 ```
 
 ```{r}
+#| label: best_model_old
+#| echo: false
 # task <- makeRegrTask(data = df_train, target = "qOut")
 
 # Tuning
@@ -1801,28 +1834,36 @@ df_test <- split |> testing()
 
 # Best model
 # params <- rf$recommended.pars
-best_model <- ranger(
-    formula = qOut ~ .,
-    data = df_train,
-    mtry = 1, # params$mtry,
-    min.node.size = 2, # params$min.node.size,
-    importance = "permutation"
-)
-
-# Prédiction
-pred <- predict(best_model, data = df_test)$predictions
 ```
 
 ```{r}
+#| label: random_forest
+#| code-fold: false
+best_model <- ranger(
+    formula = qOut ~ .,
+    data = df_train,
+    mtry = 1,
+    min.node.size = 2,
+    importance = "permutation"
+)
+```
+
+```{r}
+#| label: ml_metrics
+#| echo: false
+pred <- predict(best_model, data = df_test)$predictions
 metric_mae <- mean(abs(pred - df_test$qOut))
 metric_r2 <- 1 - sum((pred - df_test$qOut)^2) / sum((mean(df_test$qOut) - df_test$qOut)^2)
 ```
 
 Le coefficient de détermination $R^2$ associé à ce modèle de Random Forest est de **`r round(metric_r2,3)`**, ce qui est similaire au score que nous avions obtenu précédemment.
 
-Avec le graphique ci-dessous, nous pouvons comparer les valeurs prédites et les valeurs réelles. La ligne rouge en pointillés indique que lorsque les points se trouvent dessus, le modèle a fait une prédiction parfaite. Cependant, si un point est au-dessus (resp. en-dessous) de la ligne, cela signifie que le modèle a sous-estimé (resp. surestimé) `qOut`.
+Avec le graphique ci-dessous, nous pouvons comparer les valeurs prédites et les valeurs réelles. Lorsqu'un point est parfaitement aligné avec la ligne en pointillés rouge, le modèle fait la bonne prédiction. Cependant, si le point est au-dessus (resp. en-dessous) de la ligne, cela signifie que le modèle a sous-estimé (resp. surestimé) `qOut`.
 
 ```{r}
+#| label: compare_preds
+#| echo: false
+#| fig-align: center
 ggplot() +
     aes(x = pred, y = df_test$qOut) +
     geom_point() +
@@ -1830,14 +1871,25 @@ ggplot() +
     labs(
         x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité",
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
     )
 ```
 
-
 Lorsque l'on examine l'importance des variables, on observe que la variable `qLab` exerce le plus grand impact dans le modèle Random Forest, tandis que la variable `qCap` a le moins d'influence. C'est très intéressant car la variable `qLab` est sytématiquement significative dans les modèles précédent.
 
-
 ```{r}
+#| label: ml_importance
+#| echo: false
+#| fig-align: center
 importance <- best_model$variable.importance |>
     as.data.frame()
 
@@ -1856,7 +1908,12 @@ ggplot(
         x = "Variables", y = "Importance", title = "Importance des variables",
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
     ) +
-    coord_flip()
+    coord_flip() +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
 ```
 
 En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une valeur ajoutée significative. Le modèle obtenu n'est pas plus performant que les modèles précédents, et nous perdons l'avantage de disposer de coefficients associés à chaque variable.
@@ -2182,6 +2239,11 @@ apples |>
     labs(
         title = "Profit en fonction de conseils ou non.",
         y = "Profit"
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
     )
 ```
 
@@ -2233,6 +2295,11 @@ ggplot() +
     annotate(
         geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 0.65,
         label = "Coût Total", color = "blue"
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
     )
 ```
 
