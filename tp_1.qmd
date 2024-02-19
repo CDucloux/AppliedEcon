@@ -165,10 +165,10 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 **TODOS**
 
 - [x] Changer l'écriture scientifique des labels des graphs vers une écriutre en millions (25M)
-- [ ] Continuer les interprétations de la partie d'Analyse Exploratoire
+- [x] Continuer les interprétations de la partie d'Analyse Exploratoire
 - [x] Pour la SFA, faire le blabla des inneficcacités $E(\epsilon|u)$
 - [ ] Pour les fonctions de cout mettre les formes fonctionnelles avec nos 3 inputs à nous
-- [ ] Mettre les noms Corentin et Guillaume dans tous les plots 😎
+- [x] Mettre les noms Corentin et Guillaume dans tous les plots 😎
 
 ## Imports et configuration
 
@@ -399,19 +399,22 @@ apples |>
     ggplot() +
     aes(x = AP_Cap) +
     geom_histogram(binwidth = 1.25, fill = "darkgreen", alpha = alpha) +
-    labs(title = "Productivité Moyenne du Capital", subtitle = "Pour une unité de capital, combien d'unités d'output sont produits ?", x = "", y = "Fréquence")
+    labs(title = "Productivité Moyenne du Capital", subtitle = "Pour une unité de capital, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 
 apples |>
     ggplot() +
     aes(x = AP_Lab) +
     geom_histogram(binwidth = 0.75, fill = "orange", alpha = alpha) +
-    labs(title = "Productivité Moyenne du Travail", subtitle = "Pour une unité de travail, combien d'unités d'output sont produits ?", x = "", y = "Fréquence")
+    labs(title = "Productivité Moyenne du Travail", subtitle = "Pour une unité de travail, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 
 apples |>
     ggplot() +
     aes(x = AP_Mat) +
     geom_histogram(binwidth = 1.5, fill = "darkorchid", alpha = alpha) +
-    labs(title = "Productivité Moyenne des matériaux", subtitle = "Pour une unité de matériaux, combien d'unités d'output sont produits ?", x = "", y = "Fréquence")
+    labs(title = "Productivité Moyenne des matériaux", subtitle = "Pour une unité de matériaux, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 ```
 
 ### Corrélations entre les quantités des 3 facteurs de production
@@ -698,7 +701,7 @@ apples |>
     ggplot() +
     aes(x = F_Index) +
     geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7) +
-    labs(title = "Productivité globale (Indice de Fisher)", x = "Valeur de l'indice", y = "Fréquence")
+    labs(title = "Productivité globale (Indice de Fisher)", x = "Valeur de l'indice", y = "Fréquence",caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 ```
 
 - De manière intéressante, contrairement aux histogrammes des productivités moyennes de la @sec-ap-prod, la plupart des valeurs que prend l'indice de *Fisher* sont plus concentrées.
@@ -809,6 +812,11 @@ $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à
 
 ## Analyse exploratoire
 
+### Analyse en composantes principales
+
+L'analyse en composantes principales (ACP) que nous nous apprêtons à faire est justifiée dans notre contexte car nous n'avons que des variables numériques. Les deux premiers axes concentrent 60% de la variance. Nous allons alors limiter notre ACP à l'étude de ces deux axes.
+
+
 ```{r}
 #| label: pca_biplot
 #| echo: false
@@ -823,7 +831,8 @@ fviz_screeplot(
     acp,
     ylab = "",
     barfill = "royalblue",
-    barcolor = "royalblue"
+    barcolor = "royalblue",
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
 )
 
 contrib_ax_1 <- fviz_contrib(
@@ -842,25 +851,30 @@ contrib_ax_2 <- fviz_contrib(
     color = "royalblue"
 )
 
-contrib_ax_1 + contrib_ax_2
+contrib_ax_1 + contrib_ax_2 + plot_annotation(caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 
+```
+
+- **Axe 1** $\Rightarrow$ Combinaison de variables : synthéthise les indices de *Fisher*, *Paasche* et *Laspeyres* (`F_Index`, `P_Index`, `L_Index`), ainsi que les quantités (`qOut`, `qLab`, `qCap`, `qMat`) et les coûts des 3 facteurs de production (`vMat`, `vLab`, `vCap`).
+
+- **Axe 2** $\Rightarrow$ Productivités moyennes (`AP_Cap`,`AP_Mat`,`AP_Lab`), prix de vente de la production (`pOut`)
+
+```{r}
 fviz_pca_biplot(acp,
     repel = TRUE,
     title = "ACP - Biplot",
     label = "var",
     col.var = "royalblue",
     col.ind = "orange",
-    axes = c(1, 2)
+    axes = c(1, 2),
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
 )
 ```
 
-- **Axe 1** $\Rightarrow$ Combinaison de variables : synthéthise les indices de *Fisher*, *Paasche* et *Laspeyres*, ainsi que les quantités et les coûts des 3 facteurs de production.
-
-- **Axe 2** $\Rightarrow$ Productivités moyennes.
-
-**TODO : Customiser les couleurs de contributions et des inerties et tout**
+Dans notre ACP, on ne constate pas de variables qui sont fortement opposées. Elle permet de mettre en avant le lien entre les quantités des facteurs de production et leur valeur. On observe également que le prix de vente est étroitement lié avec les productivités moyennes.
 
 
+### Bonus : La répartition de `qOut`
 
 Lorsque l'on s'intéresse à la distribution de qOut et que l'on met ces valeurs en logarithme, on remarque une distribution proche d'une loi normale. Cette observation est confirmée par le test de Shapiro effectué ci-dessous. 
 
@@ -879,7 +893,8 @@ apples |>
     ) +
     labs(
         x = "log(qOut)",
-        y = "Fréquence"
+        y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
     ) +
     theme(plot.title = element_markdown(face = "bold", size = 15)) +
     ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>") +
@@ -1938,6 +1953,16 @@ apples <- apples |> mutate(cost = vCap + vLab + vMat)
 $$
 c_i = A \prod_{k=1}^{3} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
 $$
+- Dans notre cas la fonction de coût Cobb-Douglas s'écrit : 
+
+$$
+c_i = A \cdot q_{Out}^{\alpha_1} \cdot p_{Cap}^{\alpha_2} \cdot p_{Lab}^{\alpha_3} \cdot p_{Mat}^{\alpha_4} \cdot \epsilon_i
+$$
+En linéarisant on obtient :
+
+$$
+\ln(c_i) = \ln(A) + \alpha_1 \cdot \ln(q_{out}) +\alpha_2 \cdot \ln(p_{Cap})+\alpha_3 \cdot \ln(p_{Lab})+\alpha_4 \cdot \ln(p_{Mat}) + \ln(\epsilon_i)
+$$
 
 :::
 
@@ -1988,9 +2013,18 @@ La fonction de court terme est définie par l'immutabilité d'au moins un facteu
 
 ## Forme de la fonction
 $$
-c_i = A x_{i3}^{\alpha_4}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
+c_i = A x_{i3}^{\alpha_f}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
 $$
+- Dans notre cas la fonction de coût Cobb-Douglas de court terme s'écrit : 
 
+$$
+c_i = A \cdot q_{Out}^{\alpha_1} \cdot q_{Cap}^{\alpha_4} \cdot p_{Lab}^{\alpha_2} \cdot p_{Mat}^{\alpha_3} \cdot \epsilon_i
+$$
+En linéarisant on obtient :
+
+$$
+\ln(c_i) = \ln(A) + \alpha_1 \cdot \ln(q_{out}) +\alpha_4 \cdot \ln(q_{Cap})+\alpha_2 \cdot \ln(p_{Lab})+\alpha_3 \cdot \ln(p_{Mat}) + \ln(\epsilon_i)
+$$
 :::
 
 ```{r}
@@ -2033,7 +2067,7 @@ gtgazer(
 - Les prix du travail (`pLab`) et des matériaux (`pMat`) ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
 
 
-### Fonction de coût Translog
+### Fonction de coût Translog *(PARTIE BANCALE)*
 
 :::{.callout-tip}
 
@@ -2045,6 +2079,16 @@ $$
 +\frac{1}{2}\sum_{k=1}^3\alpha_{kq}\ln(p_{ik})\ln(q_i)+\varepsilon_i
 \end{gathered}
 $$
+- Dans notre cas la fonction de coût Translog s'écrit : 
+
+$$
+\begin{gathered}\ln(c_{i}) =\alpha+\beta_2 \ln(p_{Cap})+\beta_3 \ln(p_{Lab})+\beta_4 \ln(p_{Mat}) + \beta_1\ln(q_{Out}) +\\
+[\frac{1}{4}\beta_{11}(\ln(q_{Out}))^2] \\ [(\beta_{22}\ln(p^2_{Cap})+\beta_{33}\ln(p^2_{Lab})+\beta_{44}\ln(p^2_{Mat})
++\beta_{23}\ln(p_{Cap}p_{Lab})+\beta_{24}\ln(p_{Cap}p_{Mat})+\beta_{34}\ln(p_{Lab}p_{Mat})] + \\
+\frac{1}{2}[\beta_{12}\ln(p_{Cap})\ln(q_{Out})+ \beta_{13}\ln(p_{Lab})\ln(q_{Out}) + \beta_{14}\ln(p_{Mat})\ln(q_{Out})]+\epsilon_i
+\end{gathered}
+$$
+
 
 :::
 
@@ -2069,7 +2113,7 @@ gtgazer(
         "$\\alpha$",
         "$\\beta_1$",
         "$\\beta_2$",
-        "$\\beta_2$",
+        "$\\beta_3$",
         "$\\beta_4$",
         "$\\beta_{11}$",
         "$\\beta_{12}$",
@@ -2238,7 +2282,8 @@ apples |>
     geom_boxplot() +
     labs(
         title = "Profit en fonction de conseils ou non.",
-        y = "Profit"
+        y = "Profit",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
     ) +
     scale_y_continuous(
         labels = scales::label_number(
@@ -2283,7 +2328,8 @@ ggplot() +
         aes(x = qOut, ymin = func_CT, ymax = func_RT),
         fill = "black", alpha = 0.1
     ) +
-    labs(x = "qOut", y = "RT & CT", title = "Etude du profit") +
+    labs(x = "qOut", y = "RT & CT", title = "Etude du profit",
+         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ") +
     annotate(
         geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 2,
         label = "Profit", color = "black", fontface = "bold"
