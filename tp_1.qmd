@@ -164,11 +164,11 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 
 **TODOS**
 
+- [ ] Test de Fisher à mettre en place dans la partie fonction de production Translog (vs Cobb Douglas)
+- [ ] Ajouter une fonction CES classique avec 2 inputs en plus de la nested CES
+- [ ] Rendements d'échelle pour la quadratique avec $\lambda$ très très bancal
 - [x] Changer l'écriture scientifique des labels des graphs vers une écriutre en millions (25M)
-- [x] Continuer les interprétations de la partie d'Analyse Exploratoire
-- [x] Pour la SFA, faire le blabla des inneficcacités $E(\epsilon|u)$
 - [ ] Pour les fonctions de cout mettre les formes fonctionnelles avec nos 3 inputs à nous
-- [x] Mettre les noms Corentin et Guillaume dans tous les plots 😎
 
 ## Imports et configuration
 
@@ -399,22 +399,28 @@ apples |>
     ggplot() +
     aes(x = AP_Cap) +
     geom_histogram(binwidth = 1.25, fill = "darkgreen", alpha = alpha) +
-    labs(title = "Productivité Moyenne du Capital", subtitle = "Pour une unité de capital, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
+    labs(
+        title = "Productivité Moyenne du Capital", subtitle = "Pour une unité de capital, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
 
 apples |>
     ggplot() +
     aes(x = AP_Lab) +
     geom_histogram(binwidth = 0.75, fill = "orange", alpha = alpha) +
-    labs(title = "Productivité Moyenne du Travail", subtitle = "Pour une unité de travail, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
+    labs(
+        title = "Productivité Moyenne du Travail", subtitle = "Pour une unité de travail, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
 
 apples |>
     ggplot() +
     aes(x = AP_Mat) +
     geom_histogram(binwidth = 1.5, fill = "darkorchid", alpha = alpha) +
-    labs(title = "Productivité Moyenne des matériaux", subtitle = "Pour une unité de matériaux, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
+    labs(
+        title = "Productivité Moyenne des matériaux", subtitle = "Pour une unité de matériaux, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
 ```
 
 ### Corrélations entre les quantités des 3 facteurs de production
@@ -701,7 +707,7 @@ apples |>
     ggplot() +
     aes(x = F_Index) +
     geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7) +
-    labs(title = "Productivité globale (Indice de Fisher)", x = "Valeur de l'indice", y = "Fréquence",caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
+    labs(title = "Productivité globale (Indice de Fisher)", x = "Valeur de l'indice", y = "Fréquence", caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
 ```
 
 - De manière intéressante, contrairement aux histogrammes des productivités moyennes de la @sec-ap-prod, la plupart des valeurs que prend l'indice de *Fisher* sont plus concentrées.
@@ -814,8 +820,7 @@ $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à
 
 ### Analyse en composantes principales
 
-L'analyse en composantes principales (ACP) que nous nous apprêtons à faire est justifiée dans notre contexte car nous n'avons que des variables numériques. Les deux premiers axes concentrent 60% de la variance. Nous allons alors limiter notre ACP à l'étude de ces deux axes.
-
+L'analyse en composantes principales (ACP) que nous nous apprêtons à faire est justifiée dans notre contexte car nous n'avons que des variables numériques.
 
 ```{r}
 #| label: pca_biplot
@@ -835,6 +840,14 @@ fviz_screeplot(
     caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
 )
 
+```
+
+Les deux premiers axes concentrent 60% de la variance. Nous allons dès lors limiter notre **ACP** à l’étude de ces axes.
+
+```{r}
+#| label: pca_contrib
+#| echo: false
+#| fig-align: center
 contrib_ax_1 <- fviz_contrib(
     acp,
     choice = "var",
@@ -852,14 +865,16 @@ contrib_ax_2 <- fviz_contrib(
 )
 
 contrib_ax_1 + contrib_ax_2 + plot_annotation(caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
-
 ```
 
 - **Axe 1** $\Rightarrow$ Combinaison de variables : synthéthise les indices de *Fisher*, *Paasche* et *Laspeyres* (`F_Index`, `P_Index`, `L_Index`), ainsi que les quantités (`qOut`, `qLab`, `qCap`, `qMat`) et les coûts des 3 facteurs de production (`vMat`, `vLab`, `vCap`).
 
-- **Axe 2** $\Rightarrow$ Productivités moyennes (`AP_Cap`,`AP_Mat`,`AP_Lab`), prix de vente de la production (`pOut`)
+- **Axe 2** $\Rightarrow$ Productivités moyennes (`AP_Cap`,`AP_Mat`,`AP_Lab`) et prix de vente de la production (`pOut`)
 
 ```{r}
+#| label: pca_biplot_2
+#| echo: false
+#| fig-align: center
 fviz_pca_biplot(acp,
     repel = TRUE,
     title = "ACP - Biplot",
@@ -871,18 +886,17 @@ fviz_pca_biplot(acp,
 )
 ```
 
-Dans notre ACP, on ne constate pas de variables qui sont fortement opposées. Elle permet de mettre en avant le lien entre les quantités des facteurs de production et leur valeur. On observe également que le prix de vente est étroitement lié avec les productivités moyennes.
-
+Dans notre **ACP**, on ne constate pas de variables qui sont fortement opposées. Elle permet néanmoins de mettre en avant le lien entre les quantités des facteurs de production et leur valeur. On observe également que le prix de vente est étroitement lié avec les productivités moyennes.
 
 ### Bonus : La répartition de `qOut`
 
-Lorsque l'on s'intéresse à la distribution de qOut et que l'on met ces valeurs en logarithme, on remarque une distribution proche d'une loi normale. Cette observation est confirmée par le test de Shapiro effectué ci-dessous. 
+Lorsque l'on s'intéresse à la distribution de `qOut` et que l'on met ces valeurs en logarithme, on remarque une distribution proche d'une loi normale. Cette observation est confirmée par le test de Shapiro effectué ci-dessous. 
 
 ```{r}
 #| label: norm_density
 #| echo: false
 #| fig-align: center
-# https://r-charts.com/distribution/histogram-density-ggplot2/
+
 apples |>
     ggplot(aes(x = log(qOut))) +
     geom_histogram(aes(y = after_stat(density)),
@@ -1008,12 +1022,6 @@ bind_cols(qOut, predicted_qOut, residuals) |>
         diff = md("$\\widehat{q_{Out}}/q_{Out}$")
     ) |>
     fmt_number(suffixing = TRUE, n_sigfi = 2) |>
-    data_color(
-        columns = diff,
-        rows = diff > 0.7 & diff < 1.3,
-        method = "numeric",
-        palette = "green",
-    ) |>
     cols_align("center") |>
     tab_options(
         table.background.color = bg_color
@@ -1021,20 +1029,35 @@ bind_cols(qOut, predicted_qOut, residuals) |>
     opt_interactive(use_highlight = TRUE)
 ```
 
-#### Hétéroscédasticité
+La multicolinéarité est un problème qui survient lorsque certaines variables explicatives du modèle mesurent le **même phénomène**.
 
-Les résidus sont-ils normalement distribués ?
-
-**TODO : Continuer la partie sur l'hétéroscédasticité**
+Une multicolinéarité importante peut s’avérer problématique, car elle peut augmenter la variance des coefficients de régression et ainsi les rendre instables. 
 
 ```{r}
-#| label: heteroscedasticity
+#| label: vif_lin
+#| warning: false
+#| echo: false
+#| fig-align: center
 
-# performance::check_normality(linreg_prod)
-# qqnorm(residuals |> pull())
-# qqline(residuals |> pull())
-# à changer en ggplot2 ici
+collinearity_lin <- check_collinearity(linreg_prod, verbose = FALSE) |>
+    as_tibble()
+
+ggplot(collinearity_lin, aes(x = Term, y = VIF)) +
+    geom_point(size = 3.5, color = "darkgreen") +
+    geom_pointrange(aes(ymin = VIF_CI_low, ymax = VIF_CI_high), color = "darkgreen") +
+    geom_rect(aes(xmin = 0, xmax = 4, ymin = 0, ymax = 5), fill = "green", alpha = 0.01) +
+    labs(
+        title = "Etude des VIF",
+        subtitle = "Pour la fonction de production linéaire",
+        x = "",
+        y = ""
+    ) +
+    ylim(0, 5)
 ```
+
+Les **VIF** *(Variance Inflation Factor)* estiment de combien la variance d’un coefficient est augmentée en raison d’une relation linéaire avec d’autres prédicteurs. 
+
+- Ici, les **VIF** sont faibles $(<5)$, il n'y a donc pas de raison de s'inquiéter concernant une éventuelle multicolinéarité
 
 #### Spécification de la forme fonctionnelle
 
@@ -1062,7 +1085,7 @@ $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est $< 0.05$,
 #| fig-align: center
 aic_linreg_prod <- AIC(linreg_prod)
 loglik_linreg_prod <- logLik(linreg_prod)[1]
-check_posterior_predictions(linreg_prod, verbose = FALSE)
+# check_posterior_predictions(linreg_prod, verbose = FALSE)
 ```
 
 ::: {.callout-caution}
@@ -1163,7 +1186,7 @@ Dans le cadre de cette régression, étant donné que le modèle est sous forme 
 
 > *Note* : les coefficients sont significatifs au seuil de 10% pour `qCap`, 1% pour `qLab` et 1% pour `qMat`.
 
-- On remarque aussi que la qualité d'ajustement du modèle a diminué de près de 20% puisque le $R^2_{adj}=$ 0.585.
+- Le $R^2_{adj}=$ 0.585. On ne peut cependant pas directement comparer les $R^2_{adj}$ entre les fonctions de production linéaires et **Cobb-Douglas** puisque les variables dépendantes ne sont pas les mêmes. 
 
 ```{r}
 #| label: cd_prod_posterior
@@ -1199,7 +1222,7 @@ gamma <- cd_prod$coef[4] |> unname()
 return_to_scale <- alpha + beta + gamma
 ```
 
-- On trouve que $\hat{\alpha} + \hat{\beta} + \hat{\gamma} =$ **`r round(return_to_scale, 2)`**, donc les rendements d'échelles sont croissants, c'est à dire que le processus de production est considéré comme particulièrement efficace et présente des *économies d’échelle*. Un accroissement identique de tous les facteurs conduit à un
+- On trouve que $\hat{\alpha} + \hat{\beta} + \hat{\gamma} =$ **`r round(return_to_scale, 2)`**, donc les rendements d'échelles sont croissants, c'est à dire que le processus de production présente des *économies d’échelle*. Un accroissement identique de tous les facteurs conduit à un
 accroissement plus important de la production. 
 
 - Ces rendements d’échelle croissants sont souvent le résultat de coûts fixes élevés *(voir la @sec-desc-table pour s'en convaincre)*.
@@ -1374,7 +1397,130 @@ loglik_quad_prod <- logLik(quad_prod_2)[1]
 
 - Enfin, le coefficient associé à l'effet quadratique des matériaux (`qMat²`) est statistiquement significatif au seuil 5% et possède une valeur négative, ce qui suggère une courbe de rendement d'échelle décroissante pour les matériaux, indiquant que l'augmentation de la quantité de matériaux pourrait initialement augmenter la production, mais à un rythme décroissant.
 
-$R^2_{adj} =$ 0.834 donc 83.4% de la variance de la production totale est expliquée par la variance des variables explicatives. Ce résultat est meilleur que les fonctions de production linéaire et Cobb-Douglas.
+$R^2_{adj} =$ 0.834 donc 83.4% de la variance de la production totale est expliquée par la variance des variables explicatives. Ce résultat est meilleur que la fonction de production linéaire.
+
+```{r}
+#| label: heterosced_investigate_quad
+#| echo: false
+predicted_qOut <- predict(quad_prod) |>
+    as_tibble() |>
+    rename(predicted_qOut = value)
+qOut <- apples |> select(qOut)
+
+residuals <- resid(quad_prod) |>
+    as_tibble() |>
+    rename(residuals = value)
+
+bind_cols(qOut, predicted_qOut, residuals) |>
+    mutate(diff = predicted_qOut / qOut) |>
+    arrange(diff) |>
+    gt() |>
+    tab_header(title = md("🔎 Comparaison de la **production effective** et de la **production prédite**")) |>
+    cols_label(
+        qOut = md("$q_{Out}$"),
+        predicted_qOut = md("$\\widehat{q_{Out}}$"),
+        residuals = md("$\\varepsilon_i$"),
+        diff = md("$\\widehat{q_{Out}}/q_{Out}$")
+    ) |>
+    fmt_number(suffixing = TRUE, n_sigfi = 2) |>
+    cols_align("center") |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+```{r}
+#| label: vif_quad
+#| warning: false
+#| echo: false
+#| fig-align: center
+collinearity_quad <- check_collinearity(quad_prod_2, verbose = FALSE) |>
+    as_tibble() |>
+    mutate(
+        Term = case_when(
+            Term == "qCap2" ~ "qCap²",
+            Term == "qLab2" ~ "qLab²",
+            Term == "qMat2" ~ "qMat²",
+            Term == "I(qCap * qLab)" ~ "qCap×qLab",
+            Term == "I(qLab * qMat)" ~ "qLab×qMat",
+            Term == "I(qMat * qCap)" ~ "qMat×qCap",
+            .default = as.character(Term)
+        )
+    )
+
+ggplot(collinearity_quad, aes(x = Term, y = VIF)) +
+    geom_point(size = 3.5, color = "darkred") +
+    geom_pointrange(aes(ymin = VIF_CI_low, ymax = VIF_CI_high), color = "darkred") +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 10, ymax = Inf), fill = "red", alpha = 0.01) +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 5, ymax = 10), fill = "blue", alpha = 0.01) +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 0, ymax = 5), fill = "green", alpha = 0.01) +
+    labs(
+        title = "Etude des VIF",
+        subtitle = "Pour la fonction de production quadratique",
+        x = "",
+        y = ""
+    )
+```
+
+Les valeurs de **VIF** sont ici **extrêmement élevées**. La forme fonctionnelle du modèle avec interactions et effets quadratiques entraîne naturellement ces forts problèmes de multicolinéarité.
+
+```{r}
+#| label: posterior_quad
+#| fig-align: center
+posterior_predictive_check(quad_prod_2)
+```
+
+On semble être dans une situation de **surapprentissage**, en effet le modèle s'ajuste trop par rapport aux données sur lesquelles il a été entrainé, il généralise donc mal et est très sensible au bruit.
+
+#### Rendements d'échelle
+
+Cette fois, pour calculer les rendements d'échelle, il faut vérifier la relation existant entre :
+
+$$
+\begin{gathered}
+f(\lambda q_{Cap}, \lambda q_{Lab}, \lambda q_{Mat},\\ \lambda q_{Cap}^2, \lambda q_{Lab}^2, \lambda q_{Mat}^2,\\ \lambda q_{Cap}q_{Lab}, \lambda q_{Cap}q_{Mat}, \lambda q_{Lab}q_{Mat})
+\end{gathered}
+$$ {#eq-scales-1}
+
+et
+
+$$
+\begin{gathered}
+\lambda \times f(q_{Cap}, q_{Lab}, q_{Mat},\\ q_{Cap}^2, q_{Lab}^2, q_{Mat}^2, \\q_{Cap}q_{Lab}, q_{Cap}q_{Mat}, q_{Lab}q_{Mat})
+\end{gathered}
+$$ {#eq-scales-2}
+
+::: {.callout-note}
+
+## Note sur les rendements d'échelle
+
+- **Décroissants** si @eq-scales-1 $<$ @eq-scales-2
+
+- **Constants** si @eq-scales-1 $=$ @eq-scales-2
+
+- **Croissants** si @eq-scales-1 $>$ @eq-scales-2
+
+:::
+
+**TRES BANCAL**
+
+```{r}
+#| label: quad_return_scale
+lambda <- rep(3, 140)
+
+quad_prod_3 <- lm(
+    qOut ~ lambda * qCap + lambda * qLab + lambda * qMat +
+        qCap2 + qLab2 + qMat2 +
+        I(qCap * qLab) + I(qLab * qMat) + I(qMat * qCap),
+    data = apples
+)
+
+quad_x1 <- predict(quad_prod_2)
+quad_x2 <- predict(quad_prod_3)
+
+quad_x2 / quad_x1
+```
 
 #### Productivité marginale des inputs
 
@@ -1417,14 +1563,6 @@ quad_prod_margProducts |>
 
 > Cette fois on remarque qu'il existe des **productivités marginales négatives**. Prenons l'exemple du producteur 1. Si celui-ci décide d'ajouter une unité de capital en maintenant les autres inputs constants (travail et matériaux), alors sa production va diminuer de 3.07 unités.
 
-#### Elasticité de substitution des inputs
-
-**TODO** : à confirmer ?
-
-```{r}
-# elasticities(quad_prod)
-```
-
 ### Fonction de production Translog
 
 :::{.callout-tip}
@@ -1441,7 +1579,7 @@ $$
 
 $$
 \begin{gathered}\ln(q_{Out})​=α+β_1 \ln(​q_{Cap})​+β_2 \ln(​q_{Lab})​+β_3 \ln(​q_{Mat})\\
-​+\frac{1}{2}​(β_{11}\ln(​q^2_{Cap})​+β_{22}\ln(​q^2_{Lab})​+β_{33}\ln(​q^2_{Mat}))\\
+​+\frac{1}{2}​\left(β_{11}\ln(​q^2_{Cap})​+β_{22}\ln(​q^2_{Lab})​+β_{33}\ln(​q^2_{Mat})\right)\\
 ​+​β_{12}\ln(​q_{Cap}​q_{Lab})​+β_{13}​\ln(q_{Cap}​q_{Mat})​+β_{23}\ln(​q_{Lab}​q_{Mat})​+ε_i​
 \end{gathered}
 $$
@@ -1494,10 +1632,6 @@ En effet, seulement 3 coefficients sont significatifs au seuil de 10% :
 
 - Le $R^2_{adj}$ est un peu plus elevé que celui de la *Cobb-Douglas*, autour de 0.6. 
 
-```{r}
-# TODO : elasticités à confirmer
-# elasticities(translog_prod)
-```
 
 #### Coût marginal de la production
 
@@ -1607,13 +1741,13 @@ $\Rightarrow$ Cette fonction de production **Translog** est quasi-concave dans 4
 ## Forme de la fonction
 
 $$
-q_i = A \left(\sum^3_{i=1}\delta_k x_{ik}^{-\rho}\right)^{-\frac{1}{\rho}}
+q_i = \gamma \left(\sum^3_{i=1}\delta_k x_{ik}^{-\rho}\right)^{-\frac{1}{\rho}} + \varepsilon_i
 $$
 
 - La **fonction de production CES** dans notre cas s'écrit donc sous la forme :
 
 $$
-q_{Out} = A[\delta_1 q_{Cap}^{-\rho} + \delta_2 q_{Lab}^{-\rho} + \delta_3 q_{Mat}^{-\rho}]^{-\frac{1}{\rho}}
+q_{Out} = \gamma\left[\delta \cdot \left(\delta_1 q_{Cap}^{-\rho_1}+ (1-\delta_1)q_{Lab}^{-\rho_1}\right)^{\frac{\rho}{\rho_1}} +(1-\delta)q_{Mat}^{-\rho} \right]^{-{\frac{1}{\rho}}} + \varepsilon_i
 $$
 
 :::
@@ -1937,6 +2071,8 @@ En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une
 
 > Une fonction de coût représente la relation entre les quantités des différents facteurs de production utilisés (ici `qCap`, `qLab`, `qMat`) et le coût total de production (ici `vCap + vLab + vMat`).
 
+En fait, celle-ci donne le coût minimum associé à un niveau d'output et de prix des inputs, en tenant compte de la technologie disponible.
+
 Calculons d'abord le coût total des inputs, c'est à dire $v_{Cap} + v_{Lab} + v_{Mat}$.
 
 ```{r}
@@ -1953,11 +2089,13 @@ apples <- apples |> mutate(cost = vCap + vLab + vMat)
 $$
 c_i = A \prod_{k=1}^{3} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
 $$
+
 - Dans notre cas la fonction de coût Cobb-Douglas s'écrit : 
 
 $$
 c_i = A \cdot q_{Out}^{\alpha_1} \cdot p_{Cap}^{\alpha_2} \cdot p_{Lab}^{\alpha_3} \cdot p_{Mat}^{\alpha_4} \cdot \epsilon_i
 $$
+
 En linéarisant on obtient :
 
 $$
@@ -1997,17 +2135,17 @@ gtgazer(
 )
 ```
 
--  Le coefficient de 0.373 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.373%, *ceteris paribus*.
+-  Le coefficient de 0.373 pour `qOut` signifie que si la production augmente de 1%, le coût total augmentera de 0.373%, *ceteris paribus*.
 
 - Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'1% du prix du travail cela entraine une augmentation d'environ 0.464% du coût total, *ceteris paribus*.
 
-- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux cela entraine une augmentation d'environ 0.486% du coût total, *ceteris paribus*.
+- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux entraine une augmentation d'environ 0.486% du coût total, *ceteris paribus*.
 
 Seul le coefficient associé à la variable `pCap` n'est pas significatif, les autres le sont à 5 % et 10 % pour `pLab`.
 
 ### Fonction de coût Cobb-Douglas de court terme
 
-La fonction de court terme est définie par l'immutabilité d'au moins un facteur de production. Dans notre contexte, le capital est fixe, ce qui nous permet de la caractériser ainsi.
+La fonction de court terme est elle définie par l'immutabilité d'au moins un facteur de production. Dans notre contexte, le capital est fixe, ce qui nous permet de la caractériser ainsi.
 
 :::{.callout-tip}
 
@@ -2015,16 +2153,19 @@ La fonction de court terme est définie par l'immutabilité d'au moins un facteu
 $$
 c_i = A x_{i3}^{\alpha_f}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
 $$
+
 - Dans notre cas la fonction de coût Cobb-Douglas de court terme s'écrit : 
 
 $$
 c_i = A \cdot q_{Out}^{\alpha_1} \cdot q_{Cap}^{\alpha_4} \cdot p_{Lab}^{\alpha_2} \cdot p_{Mat}^{\alpha_3} \cdot \epsilon_i
 $$
+
 En linéarisant on obtient :
 
 $$
 \ln(c_i) = \ln(A) + \alpha_1 \cdot \ln(q_{out}) +\alpha_4 \cdot \ln(q_{Cap})+\alpha_2 \cdot \ln(p_{Lab})+\alpha_3 \cdot \ln(p_{Mat}) + \ln(\epsilon_i)
 $$
+
 :::
 
 ```{r}
@@ -2079,13 +2220,14 @@ $$
 +\frac{1}{2}\sum_{k=1}^3\alpha_{kq}\ln(p_{ik})\ln(q_i)+\varepsilon_i
 \end{gathered}
 $$
+
 - Dans notre cas la fonction de coût Translog s'écrit : 
 
 $$
 \begin{gathered}\ln(c_{i}) =\alpha+\beta_2 \ln(p_{Cap})+\beta_3 \ln(p_{Lab})+\beta_4 \ln(p_{Mat}) + \beta_1\ln(q_{Out}) +\\
-[\frac{1}{4}\beta_{11}(\ln(q_{Out}))^2] \\ [(\beta_{22}\ln(p^2_{Cap})+\beta_{33}\ln(p^2_{Lab})+\beta_{44}\ln(p^2_{Mat})
+\left[\frac{1}{4}\beta_{11}(\ln(q_{Out}))^2\right] \\ [(\beta_{22}\ln(p^2_{Cap})+\beta_{33}\ln(p^2_{Lab})+\beta_{44}\ln(p^2_{Mat})
 +\beta_{23}\ln(p_{Cap}p_{Lab})+\beta_{24}\ln(p_{Cap}p_{Mat})+\beta_{34}\ln(p_{Lab}p_{Mat})] + \\
-\frac{1}{2}[\beta_{12}\ln(p_{Cap})\ln(q_{Out})+ \beta_{13}\ln(p_{Lab})\ln(q_{Out}) + \beta_{14}\ln(p_{Mat})\ln(q_{Out})]+\epsilon_i
+\frac{1}{2}[\beta_{12}\ln(p_{Cap})\ln(q_{Out})+ \beta_{13}\ln(p_{Lab})\ln(q_{Out}) + \beta_{14}\ln(p_{Mat})\ln(q_{Out})]+\varepsilon_i
 \end{gathered}
 $$
 
@@ -2256,6 +2398,8 @@ En effet, il y a **`r negative_profit`** producteurs de pommes ayant un profit n
 Enfin, le **producteur `r min_producer`** possède le profit le moins elevé du panel et le **producteur `r max_producer`** possède le profit le plus elevé *(voir le tableau ci-dessus)*.
 
 ```{r}
+#| label: pi_median
+#| echo: false
 pi_med_adv <- apples |>
     filter(adv == 1) |>
     pull(profit) |>
@@ -2266,7 +2410,6 @@ pi_med_noadv <- apples |>
     pull(profit) |>
     median()
 ```
-
 
 On remarque quelque chose d'intéressant : la médiane des profits des producteurs recevant des conseils est bien plus élevée (**`r format(pi_med_adv, scientific = F)`**) que ceux ne recevant pas de conseils (**`r format(pi_med_noadv, scientific = F)`**)
 
@@ -2290,6 +2433,65 @@ apples |>
             scale_cut = scales::cut_short_scale()
         )
     )
+```
+
+> Nous pouvons aussi nous intéresser au nuage de points des profits et des quantités produites.
+
+```{r}
+#| label: qout_profit_corr
+#| echo: false
+qout_profit_corr <- apples |>
+    select(qOut, profit) |>
+    cor() |>
+    as_tibble() |>
+    select(profit) |>
+    slice(1) |>
+    pull() |>
+    round(2)
+```
+
+*Note* : Etant donné la corrélation de **`r qout_profit_corr`** entre `profit` et `qOut`, on s'attend évidemment à ce que produire plus de pommes entraîne nécessairement un acroissement du profit. 
+
+```{r}
+#| label: profit_qout
+#| fig-align: center
+#| echo: false
+ggplot(apples, aes(x = qOut, y = profit, color = efficiency)) +
+    geom_point() +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_color_continuous(trans = "reverse") +
+    labs(
+        x = expression(q[Out]),
+        y = expression(pi),
+        title = "Relation entre le profit et l'output",
+        subtitle = "Les points les plus foncés représentent les producteurs les plus efficaces techniquement (SFA)",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    theme(legend.position = "none")
+```
+
+## Coût moyen (PARTIE a améliorer)
+
+Le coût moyen représente le coût total (`cost`) de la firme divisé par son niveau d'output (`qOut`).
+
+```{r}
+#| label: mean_cost
+#| code-fold: false
+apples <- apples |> mutate(CM = cost / qOut)
+```
+
+```{r}
+ggplot(apples, aes(x = qOut, y = cost, color = CM)) +
+    geom_point()
 ```
 
 On peut également tracer les courbes correspondant à la recette totale (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimée de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les points correspondent aux données réelles. On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
@@ -2328,8 +2530,10 @@ ggplot() +
         aes(x = qOut, ymin = func_CT, ymax = func_RT),
         fill = "black", alpha = 0.1
     ) +
-    labs(x = "qOut", y = "RT & CT", title = "Etude du profit",
-         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ") +
+    labs(
+        x = expression(q[Out]), y = "RT & CT", title = "Etude du profit",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
     annotate(
         geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 2,
         label = "Profit", color = "black", fontface = "bold"
@@ -2343,6 +2547,11 @@ ggplot() +
         label = "Coût Total", color = "blue"
     ) +
     scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_x_continuous(
         labels = scales::label_number(
             scale_cut = scales::cut_short_scale()
         )
@@ -2375,15 +2584,9 @@ predict(snq_func_convex)
 
 ## Infos sur le sujet | ROADMAP
 
-$\Rightarrow$ Estimer des fonctions de cout, les rendements d'échelle, estimer somehow la leontieff généralisée, calculer le profit des producteurs, lien entre efficacité, vérifier hétéroscédasticité.
-
-- [ ] Expliquer les différences de profits entre les producteurs ? Regarder du coté des fonctions de profit.
+$\Rightarrow$ Estimer somehow la leontieff généralisée, vérifier hétéroscédasticité.
 
 Propriété de la CD => si la fonction de prod est cobb douglas, alors la fonction de coût l'est aussi.
-
-- [ ] Pour la question 7, on intègre la quantité d'inputs comme variable explicative => fonction de cout de court terme
-
-- [ ] Fonction de cout qui intègre que la quantité de capital ne change pas instantanément
 
 - [ ] Rendements d'échelle (somme des exposants) => on peut trouver ces rendements d'échelle soit en faisant la fonction de coût, ou la fonction de production. Mais on peut aussi les estimer grace à une fonction de demande
 
@@ -2412,4 +2615,4 @@ Le nombre de paramètres explose à cause des effets croisés et risque importan
 
 Quand on passe au système au tableau, on a augmenté à 3*140 données (420 observations) et on a un peu moins de paramètres
 
-[done 💅]{style="color:red;"}
+[done]{style="color:red;"}
