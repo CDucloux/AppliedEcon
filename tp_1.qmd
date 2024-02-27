@@ -168,7 +168,6 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 - [ ] Ajouter une fonction CES classique avec 2 inputs en plus de la nested CES
 - [ ] Rendements d'échelle pour la quadratique avec $\lambda$ très très bancal
 - [x] Changer l'écriture scientifique des labels des graphs vers une écriutre en millions (25M)
-- [ ] Pour les fonctions de cout mettre les formes fonctionnelles avec nos 3 inputs à nous
 
 ## Imports et configuration
 
@@ -2208,7 +2207,7 @@ gtgazer(
 - Les prix du travail (`pLab`) et des matériaux (`pMat`) ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
 
 
-### Fonction de coût Translog *(PARTIE BANCALE)*
+### Fonction de coût Translog
 
 :::{.callout-tip}
 
@@ -2224,7 +2223,7 @@ $$
 - Dans notre cas la fonction de coût Translog s'écrit : 
 
 $$
-\begin{gathered}\ln(c_{i}) =\alpha+\beta_2 \ln(p_{Cap})+\beta_3 \ln(p_{Lab})+\beta_4 \ln(p_{Mat}) + \beta_1\ln(q_{Out}) +\\
+\begin{gathered}\ln(c_{i}) =\alpha+\beta_2 \ln(p_{Cap})+\beta_3 \ln(p_{Lab})+\beta_4 \ln(p_{Mat}) + \beta_1\ln(q_{Out}) +
 \left[\frac{1}{4}\beta_{11}(\ln(q_{Out}))^2\right] \\ [(\beta_{22}\ln(p^2_{Cap})+\beta_{33}\ln(p^2_{Lab})+\beta_{44}\ln(p^2_{Mat})
 +\beta_{23}\ln(p_{Cap}p_{Lab})+\beta_{24}\ln(p_{Cap}p_{Mat})+\beta_{34}\ln(p_{Lab}p_{Mat})] + \\
 \frac{1}{2}[\beta_{12}\ln(p_{Cap})\ln(q_{Out})+ \beta_{13}\ln(p_{Lab})\ln(q_{Out}) + \beta_{14}\ln(p_{Mat})\ln(q_{Out})]+\varepsilon_i
@@ -2479,7 +2478,7 @@ ggplot(apples, aes(x = qOut, y = profit, color = efficiency)) +
     theme(legend.position = "none")
 ```
 
-## Coût moyen (PARTIE a améliorer)
+## Coût moyen
 
 Le coût moyen représente le coût total (`cost`) de la firme divisé par son niveau d'output (`qOut`).
 
@@ -2493,6 +2492,62 @@ apples <- apples |> mutate(CM = cost / qOut)
 ggplot(apples, aes(x = qOut, y = cost, color = CM)) +
     geom_point()
 ```
+
+On constate que le coût moyen diminue considérablement au début, puis se stabilise à mesure que la quantité produite augmente.
+
+```{r}
+qOut_MAX <- 8000000
+
+df_cost <- bind_cols(margCosts, apples |> select(pOut, qOut, cost)) |> 
+            filter(marg_cost < 10) |> 
+            filter(qOut < qOut_MAX) |> 
+            mutate(avg_cost = cost / qOut) |> 
+            mutate(diff_cost = avg_cost - marg_cost)
+
+cube_ac <- lm(avg_cost ~ qOut + I(qOut^2) + I(qOut^3) + I(qOut^4) + I(qOut^5) + I(qOut^6) + I(qOut^7) + I(qOut^8), df_cost)
+coefs <- cube_ac$coefficients
+
+qOut <- seq(0, qOut_MAX, by = 1000)
+
+func_AC <- coefs[1] + coefs[2] * qOut + coefs[3] * qOut^2 + coefs[4] * qOut^3 + coefs[5] * qOut^4+ coefs[6] * qOut^5+ coefs[7] * qOut^6+ coefs[8] * qOut^7+ coefs[9] * qOut^8
+datoum2 <- data.frame(qOut = qOut, func_AC = func_AC)
+ggplot()+
+  geom_line(data = datoum2, aes(x = qOut, y = func_AC), color = "purple", lwd = 1)+
+  geom_point(data = df_cost, aes(x = qOut, y = avg_cost), alpha = 0.1, color = "purple")+
+  labs(
+        x = expression(q[Out]), y = "Coût Moyen", title = "Coût moyen en fonction de qOut",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )+
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+On va sur ce graphique analyser la différence entre le coût moyen et le coût marginal. Le coût marginal que nous utilisons est celui calculé en Section 5.4.1. Selon @harnay, toutes les valeurs négatives démontrent donc que les producteurs ont un coût marginal croissant, tandis que si la valeur est positive sur ce graphe, cela signifie que le producteur a un coût marginal décroissant. On constate que la majorité des producteurs ont un coût marginal décroissant.
+
+```{r}
+ggplot()+
+  geom_point(data = df_cost, aes(x = qOut, y = diff_cost),
+             color = "purple4",
+             alpha = 0.5)+
+  labs(
+        x = expression(q[Out]), y = "Coût Moyen - Coût Marginal",
+        title = "Coût Moyen - Coût Marginal en fonction de qOut",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )+
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )+
+  geom_hline(yintercept= 0, linetype="dashed", color = "red")
+```
+
+
+
+
 
 On peut également tracer les courbes correspondant à la recette totale (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimée de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les points correspondent aux données réelles. On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
 
