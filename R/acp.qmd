@@ -1,0 +1,122 @@
+## Analyse exploratoire
+
+### Analyse en composantes principales
+
+L'analyse en composantes principales (ACP) que nous nous apprêtons à faire est justifiée dans notre contexte car nous n'avons que des variables numériques.
+
+```{r}
+#| label: pca_biplot
+#| echo: false
+#| fig-align: center
+apples_pca <- apples[-c(96, 129), ] |> select(-c(N, adv_chr))
+
+# On retire les individus 96 et 129 de l'ACP
+
+acp <- PCA(apples_pca, graph = FALSE)
+
+fviz_screeplot(
+    acp,
+    ylab = "",
+    barfill = "royalblue",
+    barcolor = "royalblue",
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+)
+```
+
+Les deux premiers axes concentrent 60% de la variance. Nous allons dès lors limiter notre **ACP** à l’étude de ces axes.
+
+```{r}
+#| label: pca_contrib
+#| echo: false
+#| fig-align: center
+contrib_ax_1 <- fviz_contrib(
+    acp,
+    choice = "var",
+    axes = 1,
+    fill = "royalblue",
+    color = "royalblue"
+)
+
+contrib_ax_2 <- fviz_contrib(
+    acp,
+    choice = "var",
+    axes = 2,
+    fill = "royalblue",
+    color = "royalblue"
+)
+
+contrib_ax_1 + contrib_ax_2 + plot_annotation(caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
+```
+
+- **Axe 1** $\Rightarrow$ Combinaison de variables : synthéthise les indices de *Fisher*, *Paasche* et *Laspeyres* (`F_Index`, `P_Index`, `L_Index`), ainsi que les quantités (`qOut`, `qLab`, `qCap`, `qMat`) et les coûts des 3 facteurs de production (`vMat`, `vLab`, `vCap`).
+
+- **Axe 2** $\Rightarrow$ Productivités moyennes (`AP_Cap`,`AP_Mat`,`AP_Lab`) et prix de vente de la production (`pOut`)
+
+```{r}
+#| label: pca_biplot_2
+#| echo: false
+#| fig-align: center
+fviz_pca_biplot(acp,
+    repel = TRUE,
+    title = "ACP - Biplot",
+    label = "var",
+    col.var = "royalblue",
+    col.ind = "orange",
+    axes = c(1, 2),
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+)
+```
+
+Dans notre **ACP**, on ne constate pas de variables qui sont fortement opposées. Elle permet néanmoins de mettre en avant le lien entre les quantités des facteurs de production et leur valeur. On observe également que le prix de vente est étroitement lié avec les productivités moyennes.
+
+### Bonus : La répartition de `qOut`
+
+Lorsque l'on s'intéresse à la distribution de `qOut` et que l'on met ces valeurs en logarithme, on remarque une distribution proche d'une loi normale. Cette observation est confirmée par le test de Shapiro effectué ci-dessous.
+
+```{r}
+#| label: norm_density
+#| echo: false
+#| fig-align: center
+
+apples |>
+    ggplot(aes(x = log(qOut))) +
+    geom_histogram(aes(y = after_stat(density)),
+        alpha = 0.6,
+        bins = 25,
+        fill = "royalblue",
+        color = "royalblue"
+    ) +
+    labs(
+        x = "log(qOut)",
+        y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    theme(plot.title = element_markdown(face = "bold", size = 15)) +
+    ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>") +
+    geom_density(
+        color = "royalblue",
+        linewidth = 1
+    ) +
+    stat_function(
+        fun = dnorm,
+        args = list(
+            mean = mean(log(apples$qOut)),
+            sd = sd(log(apples$qOut))
+        ),
+        color = "darkred",
+        linewidth = 1
+    )
+```
+
+$$
+\begin{cases}
+H_0: \ln(q_{Out})\text{ suit une distribution normale} \\
+H_1: \ln(q_{Out})\text{ ne suit pas une distribution normale}
+\end{cases}
+$$
+
+```{r}
+pval_shap_test <- shapiro.test(log(apples$qOut))$p.value
+```
+
+$\Rightarrow$ Au seuil $\alpha = 5\%$, le test de *Shapiro* confirme statistiquement le fait que les données `ln(qOut)` suivent une distribution normale avec une $p-value$ = `r  round(pval_shap_test,2)` soit $> 0.05$, donc $H_0$ n'est pas rejeté.

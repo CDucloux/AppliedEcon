@@ -1,0 +1,194 @@
+### Fonction de production Cobb-Douglas {#sec-cobb-prod}
+
+:::{.callout-tip}
+
+## Forme de la fonction
+
+$$
+q_i = A \prod_{k=1}^3 x_{ik}^{a_k}ε_i
+$$
+
+- La **fonction de production Cobb-Douglas** dans notre cas s'écrit donc sous la forme :
+
+$$
+q_{Out} = A\cdot q_{Cap}^\alpha \cdot q_{Lab}^\beta \cdot q_{Mat}^\gamma \cdot ε_i
+$$
+
+On peut aussi facilement linéariser la fonction pour pouvoir la préparer à une procédure `lm`, dès lors on obtient :
+
+$$
+\ln(q_{out}) = \ln(A) + \alpha \cdot \ln(q_{Cap}) + \beta \cdot \ln(q_{Lab}) + \gamma \cdot \ln(q_{Mat}) +  \ln{(ε_i)}
+$$
+
+:::
+
+Le package `micEcon` propose néanmoins l'estimation d'une fonction de production **Cobb-Douglas** grâce à la fonction `translogEst` et l'argument `linear = TRUE`^[Grâce à cet argument, on restreint en fait les coefficients de tous les termes *quadratiques* et d'*interaction* à zéro, ce qui revient à estimer une fonction **Cobb-Douglas**.].
+
+```{r}
+#| label: cd_prod
+#| code-fold: false
+cd_prod <- translogEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    linear = TRUE
+)
+```
+
+```{r}
+#| label: cd_prod_table
+#| echo: false
+gtgazer(
+    cd_prod,
+    n_coef = 4,
+    coefnames = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`"
+    ),
+    title = "**Fonction de production Cobb-Douglas**",
+    bg_color = bg_color
+)
+```
+
+```{r}
+#| label: cd_prod_metrics
+#| echo: false
+apples <- apples |> mutate(
+    log_qOut = log(qOut),
+    log_qCap = log(qCap),
+    log_qLab = log(qLab),
+    log_qMat = log(qMat)
+)
+
+cd_prod_2 <- lm(
+    log_qOut ~ log_qCap + log_qLab + log_qMat,
+    data = apples
+)
+
+aic_cd_prod <- AIC(cd_prod_2)
+bic_cd_prod <- BIC(cd_prod_2)
+loglik_cd_prod <- logLik(cd_prod_2)[1]
+```
+
+Dans le cadre de cette régression, étant donné que le modèle est sous forme $\log-\log$, on peut interpréter les 3 coefficients comme des élasticités partielles :
+
+- $\alpha \Rightarrow$ Un changement d'un pourcent de `qCap` induit un changement de 0.163% de `qOut`, *ceteris paribus*. 
+
+- $\beta \Rightarrow$ Un changement d'un pourcent de `qLab` induit un changement de 0.676% de `qOut`, *ceteris paribus*. 
+
+- $\gamma \Rightarrow$ Un changement d'un pourcent de `qMat` induit un changement de 0.627% de `qOut`, *ceteris paribus*.
+
+> *Note* : les coefficients sont significatifs au seuil de 10% pour `qCap`, 1% pour `qLab` et 1% pour `qMat`.
+
+- Le $R^2_{adj}=$ 0.585. On ne peut cependant pas directement comparer les $R^2_{adj}$ entre les fonctions de production linéaires et **Cobb-Douglas** puisque les variables dépendantes ne sont pas les mêmes. 
+
+```{r}
+#| label: cd_prod_posterior
+#| fig-align: center
+check_posterior_predictions(cd_prod_2)
+```
+
+#### Rendements d'échelle
+
+On l'a vu ci-dessus, les exposants $\alpha$, $\beta$ et $\gamma$ sont les élasticités de la production, c'est-à-dire qu'ils mesurent respectivement le changement en pourcentage de l'output aux variations en pourcentage de la quantité de capital, de la quantité de travail et de la quantité de matériaux.
+
+- Grâce à ces coefficients estimés, on peut déterminer les rendements d'échelle.
+
+::: {.callout-note}
+
+## Note sur les rendements d'échelle
+
+- **Décroissants** si $\hat{\alpha} + \hat{\beta} + \hat{\gamma} < 1$
+
+- **Constants** si $\hat{\alpha} + \hat{\beta} + \hat{\gamma} = 1$
+
+- **Croissants** si $\hat{\alpha} + \hat{\beta} + \hat{\gamma} > 1$
+
+:::
+
+```{r}
+#| label: return_to_scale
+#| code-fold: false
+alpha <- cd_prod$coef[2] |> unname()
+beta <- cd_prod$coef[3] |> unname()
+gamma <- cd_prod$coef[4] |> unname()
+
+return_to_scale <- alpha + beta + gamma
+```
+
+- On trouve que $\hat{\alpha} + \hat{\beta} + \hat{\gamma} =$ **`r round(return_to_scale, 2)`**, donc les rendements d'échelles sont croissants, c'est à dire que le processus de production présente des *économies d’échelle*. Un accroissement identique de tous les facteurs conduit à un
+accroissement plus important de la production. 
+
+- Ces rendements d’échelle croissants sont souvent le résultat de coûts fixes élevés *(voir la @sec-desc-table pour s'en convaincre)*.
+
+> Une implication de ce résultat est que des installations de production à grande échelle ont tendance à être plus efficaces que des installations à petite échelle.
+
+***
+
+**Intéressons-nous à l’élasticité de substitution, qui mesure la facilité avec laquelle un input peut être substitué par un autre.**
+
+- Si l'elasticité de substitution n'est pas empiriquement estimable pour la **Cobb-Douglas**, celle-ci suppose implicitement que l'élasticité de substitution de *Allen* est égale à un, soit $\sigma_{\{\text{qCap, qLab, qMat}\}} = 1$. 
+
+- Cela implique une substitution **parfaite** entre les facteurs de production $q_{Cap}$, $q_{Lab}$ et $q_{Mat}$, **ce qui va clairement à l'encontre des résultats de la @sec-ap-prod**. 
+
+#### Productivité marginale des inputs
+
+La productivité marginale se réfère à la variation de la production totale résultant d'une petite variation d'un facteur de production spécifique, *toutes choses égales par ailleurs*.
+
+En d'autres termes, il s'agit de la quantité supplémentaire d'output qu'une entreprise peut produire en utilisant une unité supplémentaire d'un facteur de production donné, tout en maintenant constantes les quantités des autres facteurs de production.
+
+Nous obtenons alors respectivement :
+
+- $MP_{Cap} = \frac{\partial q_{Out}}{\partial q_{Cap}}$
+
+- $MP_{Lab} = \frac{\partial q_{Out}}{\partial q_{Lab}}$
+
+- $MP_{Mat} = \frac{\partial q_{Out}}{\partial q_{Mat}}$
+
+On peut facilement calculer ces productivités marginales avec la fonction `cobbDouglasDeriv`.
+
+```{r}
+#| label: cd_prod_mp
+#| code-fold: false
+cd_prod_margProducts <- cobbDouglasDeriv(
+    c("qCap", "qLab", "qMat"),
+    data = apples, coef = coef(cd_prod)[1:4],
+    coefCov = vcov(cd_prod)[1:4, 1:4]
+)
+```
+
+```{r}
+#| label: cd_prod_mp_table
+#| echo: false
+cd_prod_margProducts$deriv |>
+    as_tibble() |>
+    rowid_to_column() |>
+    gt() |>
+    cols_label(
+        rowid = md("$N$"),
+        qCap = md("$MP_{Cap}$"),
+        qLab = md("$MP_{Lab}$"),
+        qMat = md("$MP_{Mat}$")
+    ) |>
+    fmt_number(-rowid) |>
+    fmt_integer(rowid, pattern = "Producteur {x}") |>
+    cols_align("center") |>
+    tab_header(
+        title = md("**Productivités marginales**"),
+        subtitle = md("*Dans le cadre d'une fonction de production `Cobb-Douglas`*")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+- *Par exemple*, pour le producteur 1 : 
+  - L'augmentation d'une unité de **capital** tout en maintenant constant le niveau de travail et de matériaux entraînera une augmentation de 6.23 unités d'output.
+  - L'augmentation d'une unité de **travail** tout en maintenant constant le niveau de capital et de matériaux entrainera une augmentation de 6.03 unités d'output.
+  - L'augmentation d'une unité de **matériaux** tout en maintenant constant le niveau de travail et de capital entrainera une augmentation de 59.09 unités d'output.
+
+> On remarque dans ce modèle que la productivité marginale des matériaux est supérieure à celle du capital et du travail **pour tous les producteurs**. De plus, aucune productivité marginale n'est négative, c'est à dire que rajouter des quantités de n'importe quel input sans augmenter les autres résultera toujours en une augmentation de la production.
