@@ -7,11 +7,11 @@ toc-title: 📚 Table des matières
 lang: fr
 number-sections: true
 author:
-  - name: "*Corentin Ducloux*"
+  - name: "{{< fa brands github >}} [*Corentin Ducloux*](https://github.com/CDucloux)"
     affiliation: 
       - name: Université de Tours
         url: https://www.univ-tours.fr/
-  - name: "*Guillaume Devant*"
+  - name: "{{< fa brands github >}} [*Guillaume Devant*](https://github.com/devgui37)"
     affiliation: 
       - name: Université de Tours
         url: https://www.univ-tours.fr/
@@ -165,8 +165,9 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
 **TODOS**
 
 - [ ] Test de Fisher à mettre en place dans la partie fonction de production Translog (vs Cobb Douglas)
-- [ ] Ajouter une fonction CES classique avec 2 inputs en plus de la nested CES
 - [ ] Rendements d'échelle pour la quadratique avec $\lambda$ très très bancal
+- [ ] étude des VIF pour la translog form et du posterior predictive check
+- [ ] Inclure aussi l'elasticité de substitution pour les fonctions de cost
 - [x] Changer l'écriture scientifique des labels des graphs vers une écriutre en millions (25M)
 
 ## Imports et configuration
@@ -1739,15 +1740,21 @@ $\Rightarrow$ Cette fonction de production **Translog** est quasi-concave dans 4
 
 ## Forme de la fonction
 
+La fonction de production CES avec 3 variables explicatives s'écrit :
+
 $$
 q_i = \gamma \left(\sum^3_{i=1}\delta_k x_{ik}^{-\rho}\right)^{-\frac{1}{\rho}} + \varepsilon_i
 $$
 
-- La **fonction de production CES** dans notre cas s'écrit donc sous la forme :
+Cependant, utiliser cette forme fonctionnelle peut s'avérer problématique car elle impose que toute paire d'inputs aient la même élasticité de substitution, soit par exemple que $\sigma_{\{\text{qCap, qLab}\}} = \sigma_{\{\text{qCap, qMat}\}}$, alors même 
+
+- Tandis que la **fonction de production CES emboitée** proposée par @sato1967 dans notre cas s'écrit sous la forme :
 
 $$
 q_{Out} = \gamma\left[\delta \cdot \left(\delta_1 q_{Cap}^{-\rho_1}+ (1-\delta_1)q_{Lab}^{-\rho_1}\right)^{\frac{\rho}{\rho_1}} +(1-\delta)q_{Mat}^{-\rho} \right]^{-{\frac{1}{\rho}}} + \varepsilon_i
 $$
+
+Nous estimerons cette fonction. ^[L'estimation d'une fonction **CES emboîtée** à 3 inputs est disponible dans le package `micEconCES`.]
 
 :::
 
@@ -1761,19 +1768,84 @@ ces_prod <- cesEst(
     c("qCap", "qLab", "qMat"),
     data = apples,
     method = "SANN",
-    returnGrad = TRUE
+    returnGrad = TRUE,
 )
 ```
 
-```{r}
-summary(ces_prod)
+::: {.callout-warning}
 
+## Méthode d'optimisation SANN
+
+Parmi les méthodes d'optimisation disponibles, aucune ne fonctionne à part celle du **SANN** (Simulated Annealing). La méthode **SANN** ou *Recuit Simulé* en français est une technique probabiliste pour approximer l'optimum global d'une fonction donnée.
+
+Le nom provient du recuit en métallurgie. Pour plus de détail, voir la page wikipédia correspondante : <https://en.wikipedia.org/wiki/Simulated_annealing>
+
+:::
+
+```{r}
+#| label: ces_prod_table
+#| echo: false
+ces_prod_r_squared <- round(summary(ces_prod)$r.squared[, 1], 3)
+
+sigma_qcap_qlab <- round(ces_prod$ela[1], 2)
 aes_ces_prod <- round(ces_prod$ela[2], 2)
 
-durbinWatsonTest(ces_prod)
+summary(ces_prod)$coefficients |>
+    as_tibble() |>
+    add_column(
+        coefnames = c("$\\gamma$", "$\\delta_1$", "$\\delta$", "$\\rho_1$", "$\\rho$"),
+    ) |>
+    mutate(signif = makestars(`Pr(>|t|)`)) |>
+    gt(rowname_col = "coefnames") |>
+    fmt_number(decimals = 3) |>
+    cols_hide("t value") |>
+    fmt_markdown(coefnames) |>
+    fmt_markdown(signif) |>
+    cols_label(
+        Estimate = md("**Coefficients**"),
+        `Std. Error` = md("**Ecart Type**"),
+        `Pr(>|t|)` = md("**Pvalues**"),
+        signif = md("**Significativité**")
+    ) |>
+    tab_header(
+        title = md("**Fonction de production CES emboîtée**"),
+        subtitle = md("Variable dépendante : `qOut`")
+    ) |>
+    tab_footnote(
+        footnote = md(
+            glue::glue(
+                "*Observations : 140*
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                $R^2 =$ {ces_prod_r_squared}"
+            )
+        )
+    ) |>
+    tab_footnote(
+        footnote = md("***")
+    ) |>
+    tab_footnote(
+        footnote = md("<u>**Elasticités de Substitution**</u>")
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue(" *Hicks-McFadden* $\\Rightarrow \\sigma_{\\text{\\{qCap, qLab\\}}} =$ [sigma_qcap_qlab]",
+            .open = "[",
+            .close = "]"
+        ))
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue("*Allen-Uzawa* $\\Rightarrow \\sigma_{\\text{\\{qCap, qLab\\}} | \\text{qMat}} =$ [aes_ces_prod]",
+            .open = "[",
+            .close = "]"
+        ))
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
 ```
 
-L'élasticité de substitution est ici égale à **`r aes_ces_prod`**. Celle-ci étant supérieure à 1, cela signifie que les 3 facteurs de productions `qCap`, `qLab` et `qMat` sont fortement substituables dans ce modèle. En d'autres termes, une augmentation du prix relatif d'un facteur (par exemple de `qCap`) entraînera une substitution vers un autre facteur (`qLab` ou `qMat`).
+- L'élasticité de substitution de *Hicks-McFadden* $\left(\frac{1}{1 + \rho_1}\right)$ mesure la substituabilité entre les deux premiers facteurs de production, c'est à dire entre `qCap` et `qLab`. Les deux facteurs de production sont fortement substituables.
+
+- L'élasticité de substitution de *Allen-Uzawa* $\left(\frac{1}{1 + \rho}\right)$ est ici égale à **`r aes_ces_prod`**. Celle-ci étant supérieure à 1, cela signifie que le facteur de production `qMat` est fortement substituable entre la combinaison des 2 autres facteurs de productions `qCap` et `qLab`. En d'autres termes, une augmentation du prix relatif d'une combinaison des 2 facteurs (`qCap` et `qLab`) entraînera une substitution vers `qMat`.
 
 ### Fonction de production SFA 
 
@@ -2032,7 +2104,7 @@ ggplot() +
     )
 ```
 
-Lorsque l'on examine l'importance des variables, on observe que la variable `qLab` exerce le plus grand impact dans le modèle Random Forest, tandis que la variable `qCap` a le moins d'influence. C'est très intéressant car la variable `qLab` est sytématiquement significative dans les modèles précédent.
+Lorsque l'on examine l'importance des variables, on observe que la variable `qLab` exerce le plus grand impact dans le modèle de **Random Forest**, tandis que la variable `qCap` a le moins d'influence. C'est en effet assez intéressant car la variable `qLab` est systématiquement significative dans les modèles précédents.
 
 ```{r}
 #| label: ml_importance
@@ -2418,9 +2490,8 @@ On remarque quelque chose d'intéressant : la médiane des profits des producteu
 #| fig-align: center
 apples |>
     select(pOut, qOut, cost, profit, adv_chr) |>
-    mutate(CA = pOut * qOut) |>
     ggplot() +
-    aes(y = profit, fill = adv_chr) +
+    aes(y = profit, x = adv_chr, fill = adv_chr) +
     geom_boxplot() +
     labs(
         title = "Profit en fonction de conseils ou non.",
@@ -2489,35 +2560,46 @@ apples <- apples |> mutate(CM = cost / qOut)
 ```
 
 ```{r}
+#| label: mean_cost_graph
+#| echo: false
+#| fig-align: center
 ggplot(apples, aes(x = qOut, y = cost, color = CM)) +
-    geom_point()
+    geom_point() +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
 ```
 
 On constate que le coût moyen diminue considérablement au début, puis se stabilise à mesure que la quantité produite augmente.
 
 ```{r}
+#| label: mean_cost_study
+#| echo: false
+#| fig-align: center
 qOut_MAX <- 8000000
 
-df_cost <- bind_cols(margCosts, apples |> select(pOut, qOut, cost)) |> 
-            filter(marg_cost < 10) |> 
-            filter(qOut < qOut_MAX) |> 
-            mutate(avg_cost = cost / qOut) |> 
-            mutate(diff_cost = avg_cost - marg_cost)
+df_cost <- bind_cols(margCosts, apples |> select(pOut, qOut, cost)) |>
+    filter(marg_cost < 10) |>
+    filter(qOut < qOut_MAX) |>
+    mutate(avg_cost = cost / qOut) |>
+    mutate(diff_cost = avg_cost - marg_cost)
 
 cube_ac <- lm(avg_cost ~ qOut + I(qOut^2) + I(qOut^3) + I(qOut^4) + I(qOut^5) + I(qOut^6) + I(qOut^7) + I(qOut^8), df_cost)
 coefs <- cube_ac$coefficients
 
 qOut <- seq(0, qOut_MAX, by = 1000)
 
-func_AC <- coefs[1] + coefs[2] * qOut + coefs[3] * qOut^2 + coefs[4] * qOut^3 + coefs[5] * qOut^4+ coefs[6] * qOut^5+ coefs[7] * qOut^6+ coefs[8] * qOut^7+ coefs[9] * qOut^8
+func_AC <- coefs[1] + coefs[2] * qOut + coefs[3] * qOut^2 + coefs[4] * qOut^3 + coefs[5] * qOut^4 + coefs[6] * qOut^5 + coefs[7] * qOut^6 + coefs[8] * qOut^7 + coefs[9] * qOut^8
 datoum2 <- data.frame(qOut = qOut, func_AC = func_AC)
-ggplot()+
-  geom_line(data = datoum2, aes(x = qOut, y = func_AC), color = "purple", lwd = 1)+
-  geom_point(data = df_cost, aes(x = qOut, y = avg_cost), alpha = 0.1, color = "purple")+
-  labs(
+ggplot() +
+    geom_line(data = datoum2, aes(x = qOut, y = func_AC), color = "purple", lwd = 1) +
+    geom_point(data = df_cost, aes(x = qOut, y = avg_cost), alpha = 0.1, color = "purple") +
+    labs(
         x = expression(q[Out]), y = "Coût Moyen", title = "Coût moyen en fonction de qOut",
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
-    )+
+    ) +
     scale_x_continuous(
         labels = scales::label_number(
             scale_cut = scales::cut_short_scale()
@@ -2528,21 +2610,26 @@ ggplot()+
 On va sur ce graphique analyser la différence entre le coût moyen et le coût marginal. Le coût marginal que nous utilisons est celui calculé en Section 5.4.1. Selon @harnay, toutes les valeurs négatives démontrent donc que les producteurs ont un coût marginal croissant, tandis que si la valeur est positive sur ce graphe, cela signifie que le producteur a un coût marginal décroissant. On constate que la majorité des producteurs ont un coût marginal décroissant.
 
 ```{r}
-ggplot()+
-  geom_point(data = df_cost, aes(x = qOut, y = diff_cost),
-             color = "purple4",
-             alpha = 0.5)+
-  labs(
+#| label: mean_marginal_cost
+#| echo: false
+#| fig-align: center
+ggplot() +
+    geom_point(
+        data = df_cost, aes(x = qOut, y = diff_cost),
+        color = "purple4",
+        alpha = 0.5
+    ) +
+    labs(
         x = expression(q[Out]), y = "Coût Moyen - Coût Marginal",
         title = "Coût Moyen - Coût Marginal en fonction de qOut",
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
-    )+
+    ) +
     scale_x_continuous(
         labels = scales::label_number(
             scale_cut = scales::cut_short_scale()
         )
-    )+
-  geom_hline(yintercept= 0, linetype="dashed", color = "red")
+    ) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red")
 ```
 
 
