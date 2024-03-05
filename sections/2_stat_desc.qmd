@@ -1,0 +1,494 @@
+### Productivité moyenne des facteurs de production {#sec-ap-prod}
+
+La productivité moyenne ($AP =$ **Average Product**) consiste à diviser la quantité totale d'output par la quantité totale de facteur utilisé *(input)* dans le processus de production.
+
+Imaginons que les unités d'output sont des tonnes. Pour chaque input, cela revient en fait à expliquer combien de tonnes sont produites **en moyenne** par unité de capital, de travail et de matières intermédiaires en 1986 pour chaque producteur de pommes.
+
+Nous obtenons alors respectivement :
+
+- $AP_{Cap} = \frac{q_{Out}}{q_{Cap}}$
+
+- $AP_{Lab} = \frac{q_{Out}}{q_{Lab}}$
+
+- $AP_{Mat} = \frac{q_{Out}}{q_{Mat}}$
+
+
+```{r}
+#| label: productivites
+#| code-fold: false
+apples <- apples |> mutate(
+    AP_Cap = qOut / qCap,
+    AP_Lab = qOut / qLab,
+    AP_Mat = qOut / qMat
+)
+```
+
+```{r}
+#| label: table_AP
+#| echo: false
+tibble_AP_Cap <- apples |>
+    summarise(min = min(AP_Cap), mean = mean(AP_Cap), max = max(AP_Cap), std = sd(AP_Cap)) |>
+    add_column(type = "$AP_{Cap}$", .before = "min")
+tibble_AP_Lab <- apples |>
+    summarise(min = min(AP_Lab), mean = mean(AP_Lab), max = max(AP_Lab), std = sd(AP_Lab)) |>
+    add_column(type = "$AP_{Lab}$", .before = "min")
+tibble_AP_Mat <- apples |>
+    summarise(min = min(AP_Mat), mean = mean(AP_Mat), max = max(AP_Mat), std = sd(AP_Mat)) |>
+    add_column(type = "$AP_{Mat}$", .before = "min")
+
+AP_table <- bind_rows(tibble_AP_Cap, tibble_AP_Lab, tibble_AP_Mat)
+
+AP_table |>
+    gt() |>
+    fmt_markdown(columns = type) |>
+    fmt_number(columns = c(-type)) |>
+    tab_header(
+        title = md("**Productivité Moyenne par Facteur 📋**"),
+        subtitle = md("*Capital --- Travail --- Matériaux*")
+    ) |>
+    cols_label(
+        min = md("$\\min$"),
+        mean = md("$\\mu$"),
+        max = md("$\\max$"),
+        std = md("$\\sigma^2$"),
+        type = ""
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+Ce tableau, en plus des visualisations qui vont suivre, permet d'établir que les productivités moyennes par facteur sont **très différentes selon les producteurs**. De plus, on s'aperçoit aussi qu'investir dans un facteur particulier peut être plus intéressant qu'un autre.
+
+C'est particulièrement vrai pour le facteur `qMat` avec une productivité moyenne minimale de **8.22** unités d'output pour une unité de matériaux et jusqu'à **301.43** unités d'output pour une unité de matériaux.
+
+::: {.callout-warning}
+
+Attention néanmoins, la productivité moyenne par facteur ne prend pas en compte le coût associé à chaque facteur de production, il est donc tout à fait possible que le facteur `qMat` ait une productivité moyenne élevée car son coût moyen est lui aussi elevé.
+
+:::
+
+```{r}
+#| label: AP_plots
+#| echo: false
+#| fig-align: center
+apples |>
+    ggplot() +
+    aes(x = AP_Cap) +
+    geom_histogram(binwidth = 1.25, fill = "darkgreen", alpha = alpha) +
+    labs(
+        title = "Productivité Moyenne du Capital", subtitle = "Pour une unité de capital, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
+
+apples |>
+    ggplot() +
+    aes(x = AP_Lab) +
+    geom_histogram(binwidth = 0.75, fill = "orange", alpha = alpha) +
+    labs(
+        title = "Productivité Moyenne du Travail", subtitle = "Pour une unité de travail, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
+
+apples |>
+    ggplot() +
+    aes(x = AP_Mat) +
+    geom_histogram(binwidth = 1.5, fill = "darkorchid", alpha = alpha) +
+    labs(
+        title = "Productivité Moyenne des matériaux", subtitle = "Pour une unité de matériaux, combien d'unités d'output sont produits ?", x = "", y = "Fréquence",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    )
+```
+
+### Corrélations entre les quantités des 3 facteurs de production
+
+```{r}
+#| label: q_matrix
+#| echo: false
+apples |>
+    select(qCap, qLab, qMat) |>
+    cor() |>
+    round(2) |>
+    data.frame() |>
+    gt() |>
+    tab_header(title = md("**Matrice de corrélation**")) |>
+    cols_add(type = c("$q_{Cap}$", "$q_{Lab}$", "$q_{Mat}$")) |>
+    cols_move_to_start(columns = type) |>
+    fmt_markdown(type) |>
+    cols_label(
+        type = "",
+        qCap = md("$q_{Cap}$"),
+        qLab = md("$q_{Lab}$"),
+        qMat = md("$q_{Mat}$"),
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+- Les quantités des 3 facteurs de production sont toutes corrélées positivement.
+
+- On s'aperçoit que la corrélation **positive** la plus importante est entre $q_{Lab}$ et $q_{Mat}$ $\Rightarrow$ cela implique que lorsque la quantité de travail augmente, la quantité de matériaux a tendance à augmenter dans un niveau très similaire, et *vice versa*.
+
+### Corrélations entre les productivités moyennes
+
+Essayons maintenant de comprendre comment les productivités moyennes individuelles sont corrélées :
+
+```{r}
+#| label: ap_matrix
+#| echo: false
+apples |>
+    select(starts_with("AP")) |>
+    cor() |>
+    round(2) |>
+    data.frame() |>
+    gt() |>
+    tab_header(title = md("**Matrice de corrélation**")) |>
+    cols_add(type = c("$AP_{Cap}$", "$AP_{Lab}$", "$AP_{Mat}$")) |>
+    cols_move_to_start(columns = type) |>
+    fmt_markdown(type) |>
+    cols_label(
+        type = "",
+        AP_Cap = md("$AP_{Cap}$"),
+        AP_Lab = md("$AP_{Lab}$"),
+        AP_Mat = md("$AP_{Mat}$")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+- Ces résultats nous suggèrent l'existence de relations positives entre les productivités moyennes des différents facteurs de production dans le processus de production. 
+
+- Ici, une augmentation de la productivité moyenne du travail peut être associée à une augmentation **significative** de la productivité moyenne des matériaux, ce qui peut être dû à des facteurs tels que des processus de production plus efficaces ou une meilleure utilisation des ressources de la part du producteur de pommes.
+
+***
+
+
+```{r}
+#| label: prod_plots
+#| echo: false
+#| fig-align: center
+CL <- apples |>
+    ggplot() +
+    aes(x = AP_Cap, y = AP_Lab) +
+    geom_point(colour = "slategray", alpha = alpha) +
+    labs(x = expression(AP[Cap]), y = expression(AP[Lab]))
+ML <- apples |>
+    ggplot() +
+    aes(x = AP_Mat, y = AP_Lab) +
+    geom_point(colour = "gray", alpha = alpha) +
+    labs(x = expression(AP[Mat]), y = expression(AP[Lab]))
+CM <- apples |>
+    ggplot() +
+    aes(x = AP_Cap, y = AP_Mat) +
+    geom_point(colour = "gray21", alpha = alpha) +
+    labs(x = expression(AP[Cap]), y = expression(AP[Mat]))
+
+prod_plots <- (CL + ML) / CM
+
+prod_plots + plot_annotation(
+    title = "Croisement des productivités moyennes",
+    subtitle = "Quelles sont les relations existantes entre les différentes productivités moyennes ?",
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+)
+```
+
+::: {.callout-note}
+
+Les représentations des productivités moyennes $AP_{Cap}$, $AP_{Lab}$ et $AP_{Mat}$ par rapport à l'output $q_{Out}$ peuvent aussi être très utiles pour comprendre les relations entre la production totale et l'utilisation des différents facteurs de production.
+
+:::
+
+```{r}
+#| label: qout_plots
+#| echo: false
+#| fig-align: center
+QC <- apples |>
+    ggplot() +
+    aes(y = qOut, x = AP_Cap) +
+    geom_point(colour = "darkgreen", alpha = alpha) +
+    labs(x = expression(AP[Cap]), y = "") +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+QL <- apples |>
+    ggplot() +
+    aes(y = qOut, x = AP_Lab) +
+    geom_point(colour = "orange", alpha = alpha) +
+    labs(x = expression(AP[Lab]), y = "") +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+QM <- apples |>
+    ggplot() +
+    aes(y = qOut, x = AP_Mat) +
+    geom_point(colour = "darkorchid", alpha = alpha) +
+    labs(x = expression(AP[Mat]), y = "") +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+
+qOut_prod_plots <- (QC + QL) / QM
+
+qOut_prod_plots + plot_annotation(
+    title = "Productivité moyenne par rapport à l'output total",
+    subtitle = "Quelles sont les relations existantes entre les productivités moyennes des inputs et de l'output ?",
+    caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+)
+```
+
+- Les valeurs extrêmes dans ces nuages de points nous permettent de distinguer aisément les producteurs *efficaces* et *inefficaces* dans l'utilisation des ressources.
+
+### Indices de Paasche, Laspeyres et Fisher
+
+Les productivités moyennes nous donnent une indication facteur par facteur, mais elles ne nous donnent pas nécessairement d'information **globale**. Dans ce cadre, on peut alors se demander comment agréger des quantités avec une règle *ad hoc* en un indice synthétique.
+
+**3 Indices principaux existent**
+
+::: {.callout-tip}
+
+## Indice de *Paasche*
+
+$$
+\text{Paasche}_{index} = \frac{(v_{Cap} + v_{Lab} + v_{Mat})}{{\bar{q}_{Cap}}\cdot p_{Cap} + \bar{q}_{Lab}\cdot p_{Lab} + \bar{q}_{Mat} \cdot p_{Mat}}
+$$
+
+:::
+
+::: {.callout-tip}
+
+## Indice de *Laspeyres*
+
+$$
+\text{Laspeyres}_{index} = \frac{(q_{Cap} \cdot \bar{p}_{Cap} + q_{Lab} \cdot \bar{p}_{Lab} + q_{Mat} \cdot \bar{p}_{Mat})}{(\bar{q}_{Cap}\cdot \bar{p}_{Cap}+\bar{q}_{Lab}\cdot \bar{p}_{Lab}+\bar{q}_{Mat}\cdot \bar{p}_{Mat})}
+$$
+
+:::
+
+::: {.callout-tip}
+
+## Indice de *Fisher*
+
+$$
+\text{Fisher}_{index} = \sqrt{\text{Paasche}_{index} \cdot \text{Laspeyres}_{index}}
+$$
+
+:::
+
+De plus, la fonction `quantityIndex` du package `micEconIndex` a l'intérêt de facilement intégrer les calculs de chaque indice *(Voir ci-dessous)*.
+
+```{r}
+#| label: q_index
+#| code-fold: false
+apples <- apples |> mutate(
+    L_Index = quantityIndex(
+        prices = c("pCap", "pLab", "pMat"),
+        quantities = c("qCap", "qLab", "qMat"),
+        data = apples,
+        method = "Laspeyres"
+    ),
+    P_Index = quantityIndex(
+        prices = c("pCap", "pLab", "pMat"),
+        quantities = c("qCap", "qLab", "qMat"),
+        data = apples,
+        method = "Paasche"
+    ),
+    F_Index = quantityIndex(
+        prices = c("pCap", "pLab", "pMat"),
+        quantities = c("qCap", "qLab", "qMat"),
+        data = apples,
+        method = "Fisher"
+    )
+)
+```
+
+```{r}
+#| label: q_index_plots
+#| echo: false
+#| warning: false
+#| fig-align: center
+apples |>
+    ggplot() +
+    aes(x = P_Index, y = L_Index) +
+    geom_point() +
+    geom_smooth(method = lm, se = FALSE) +
+    labs(
+        x = "Paasche Index",
+        y = "Laspeyres Index",
+        title = "Relation entre l'indice de Paasche & de Laspeyres"
+    ) +
+    theme(legend.position = "None")
+```
+
+D'après cette visualisation on peut conclure que faire le choix de l'indice de *Paasche* ou de *Laspeyres* revient sensiblement à la même interprétation. 
+
+*Note* : Etant donné que l'indice de *Fisher* est une moyenne géométrique des deux indices, il n'est pas non plus nécessaire de le représenter puisque la relation linéaire entre les deux indices sera presque parfaite dans ce cas.
+
+***
+
+```{r}
+#| label: f_index_matrix
+#| echo: false
+apples |>
+    select(AP_Cap, AP_Lab, AP_Mat, F_Index) |>
+    cor() |>
+    round(2) |>
+    data.frame() |>
+    gt() |>
+    tab_header(md("**Matrice de corrélation**")) |>
+    tab_style(
+        style = list(
+            cell_fill(color = "gray95")
+        ),
+        locations = cells_body(columns = F_Index)
+    ) |>
+    cols_add(
+        type = c("$AP_{Cap}$", "$AP_{Lab}$", "$AP_{Mat}$", "$\\text{Fisher}_{index}$")
+    ) |>
+    cols_move_to_start(columns = type) |>
+    fmt_markdown(type) |>
+    cols_label(
+        type = "",
+        AP_Cap = md("$AP_{Cap}$"),
+        AP_Lab = md("$AP_{Lab}$"),
+        AP_Mat = md("$AP_{Mat}$"),
+        F_Index = md("$\\text{Fisher}_{index}$")
+    ) |>
+    tab_style(
+        style = cell_fill(color = "gray95"),
+        locations = cells_body(rows = c(4))
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+- Ces résultats suggèrent que l'indice de *Fisher* n'est pas fortement corrélé avec les productivités moyennes individuelles des facteurs de production.
+
+### Productivité globale des facteurs
+
+- Dans la section précédente, nous avons montré que les indices donnaient sensiblement les mêmes résultats. Nous avons néanmoins choisi en tant qu'indice de productivité globale des facteurs l'indice de *Fisher*, étant donné qu'il est une moyenne géométrique de l'indice de *Paasche* et de celui de *Laspeyres*.
+
+```{r}
+#| label: f_index_hist
+#| echo: false
+#| fig-align: center
+apples |>
+    ggplot() +
+    aes(x = F_Index) +
+    geom_histogram(binwidth = 0.25, fill = "darkred", alpha = 0.7) +
+    labs(title = "Productivité globale (Indice de Fisher)", x = "Valeur de l'indice", y = "Fréquence", caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 ")
+```
+
+- De manière intéressante, contrairement aux histogrammes des productivités moyennes de la @sec-ap-prod, la plupart des valeurs que prend l'indice de *Fisher* sont plus concentrées.
+
+```{r}
+#| label: f_index_plots
+#| echo: false
+#| fig-align: center
+apples |>
+    ggplot() +
+    aes(y = qOut, x = F_Index) +
+    geom_point(colour = "darkorchid", alpha = alpha) +
+    labs(
+        title = "Relation entre l'indice de productivité globale des facteurs et l'output", y = "", x = "Indice de Fisher",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+::: {.callout-note}
+
+La variable dichotomique `adv` présente dans notre *dataset* est définie par :
+
+$$
+adv = 
+\begin{cases}
+0 \text{ si le producteur n'est pas conseillé}\\
+1 \text{ si le producteur est conseillé}
+\end{cases}
+$$
+
+On pourrait penser que les producteurs qui ont été conseillés par des laboratoires d'agronomie ont un indice de productivité globale plus important que ceux qui ne l'ont pas été. 
+
+**Vérifions-le graphiquement et statistiquement**
+
+:::
+
+```{r}
+#| label: advice_boxplot
+#| echo: false
+#| fig-align: center
+apples <- apples |> mutate(
+    adv_chr = case_when(
+        adv == 0 ~ "No advice",
+        adv == 1 ~ "Advice",
+    )
+)
+
+apples |>
+    ggplot() +
+    aes(y = F_Index, x = adv_chr, fill = adv_chr) +
+    geom_boxplot() +
+    labs(
+        title = "Productivité globale en fonction du conseil ou non d'un laboratoire", x = "", y = "",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    theme(legend.position = "None")
+
+apples_grouped <- apples |>
+    select(adv_chr, F_Index) |>
+    group_by(adv_chr) |>
+    summarise(mean = mean(F_Index))
+
+mean_advice <- apples_grouped |>
+    slice(1) |>
+    pull()
+
+mean_no_advice <- apples_grouped |>
+    slice(2) |>
+    pull()
+```
+
+- En moyenne, il semble ne pas y avoir de différence de productivité globale lorsque le producteur est conseillé. En effet, la productivité moyenne avec conseil est égale à `r round(mean_advice,2)` tandis que la productivité moyenne sans conseil est quant à elle égale à `r round(mean_no_advice,2)`.
+
+On peut aussi s'assurer que les moyennes sont significativement différentes en faisant un test de *Student* bilatéral :
+
+$$
+\begin{cases}
+H_0:\mu_{advice} =\mu_{no\_advice}\\
+H_1:\mu_{advice} \neq\mu_{no\_advice}
+\end{cases}
+$$
+
+
+```{r}
+#| label: advice_ttest
+#| echo: false
+advice <- apples |>
+    select(adv_chr, F_Index) |>
+    filter(adv_chr == "Advice") |>
+    pull()
+
+no_advice <- apples |>
+    select(adv_chr, F_Index) |>
+    filter(adv_chr == "No advice") |>
+    pull()
+
+t_test <- t.test(advice, no_advice, var.equal = F)
+pval_t_test <- t_test$p.value
+```
+
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r  round(pval_t_test,2)` $> 0.05$, **on conserve donc l'hypothèse nulle $H_0$, c'est à dire qu'il n'y a pas de différence significative dans les productivités globales quand le producteur est conseillé/ qu'il ne l'est pas.**
+

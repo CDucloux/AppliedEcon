@@ -1,0 +1,172 @@
+### Fonction de production SFA 
+
+Dans le modèle **SFA** *(Stochastic Frontier Analysis)*, on introduit un terme multiplicatif $TE_i$. Ce terme représente l’efficacité technique, définie comme le ratio d’output observé sur l’output
+maximum réalisable, soit : $TE_i = \frac{q_i}{q_i^*}$. 
+
+- On peut ré-écrire ce $TE_i$ sous la forme $\exp\left\{-u_i\right\}$.
+
+> **Utiliser un tel modèle va donc nous permettre de pouvoir estimer l'efficacité technique producteur par producteur.**
+
+*Note* : Nous pouvons utiliser plusieurs formes fonctionnelles pour ce modèle, sous la contrainte que notre variable à prédire soit mise sous forme logarithmique, ce qui élimine *de facto* les modèles de production linéaire et quadratique.
+
+::: {.callout-tip}
+
+## Forme de la fonction
+
+$$
+q_i = A\prod_{k=1}^3x_{ik}^{a_k}\cdot 
+\underbrace{\exp\left\{-u_i\right\} \cdot \exp\left\{v_i\right\}}_{\varepsilon_i}
+$$
+
+- La fonction de production **SFA Cobb-Douglas** dans notre cas s’écrit donc sous la forme :
+
+$$
+q_{Out} = A\cdot q_{Cap}^\alpha \cdot q_{Lab}^\beta \cdot q_{Mat}^\gamma \cdot \exp\left\{-u_i\right\} \cdot \exp\left\{v_i\right\}
+$$
+
+En linéarisant on obtient : 
+
+$$
+\ln(q_{out}) = \ln(A) + \alpha \cdot \ln(q_{Cap}) + \beta \cdot \ln(q_{Lab}) + \gamma \cdot \ln(q_{Mat}) + v_i - u_i
+$$
+
+:::
+
+```{r}
+#| label: cd_sfa
+#| code-fold: false
+cd_sfa <- sfa(log(qOut) ~ log(qCap) + log(qLab) + log(qMat), data = apples)
+```
+
+```{r}
+#| label: cd_sfa_table
+#| echo: false
+cd_sfa_loglik <- round(summary(cd_sfa)$mleLogl, 3)
+cd_sfa_mean_eff <- round(mean(efficiencies(cd_sfa)), 3)
+
+summary(cd_sfa)$mleParam |>
+    as_tibble() |>
+    slice(1:4) |>
+    add_column(
+        coefnames = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"),
+    ) |>
+    mutate(signif = makestars(`Pr(>|z|)`)) |>
+    gt(rowname_col = "coefnames") |>
+    fmt_number(decimals = 3) |>
+    cols_add(description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`"
+    )) |>
+    cols_move_to_start(description) |>
+    cols_hide("z value") |>
+    fmt_markdown(description) |>
+    fmt_markdown(coefnames) |>
+    fmt_markdown(signif) |>
+    cols_label(
+        description = md("**Description**"),
+        Estimate = md("**Coefficients**"),
+        `Std. Error` = md("**Ecart Type**"),
+        `Pr(>|z|)` = md("**Pvalues**"),
+        signif = md("**Significativité**")
+    ) |>
+    tab_header(
+        title = md("**Fonction de production Cobb-Douglas SFA**"),
+        subtitle = md("Variable dépendante : `qOut`")
+    ) |>
+    tab_footnote(
+        footnote = md("*Observations : 140*")
+    ) |>
+    tab_footnote(
+        footnote = md("***")
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue("**Log-Vraisemblance** $=$ {cd_sfa_loglik}"))
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue("**Efficacité moyenne** $=$ {cd_sfa_mean_eff}"))
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+- On remarque que les coefficients et les niveaux de significativité trouvés par l'estimateur du maximum de vraisemblance sont très proches de ceux de la Cobb-Douglas estimés par **OLS** dans la @sec-cobb-prod.
+
+#### Analyse de l'efficacité technique des producteurs
+
+L'efficacité technique moyenne des 140 producteurs est de 0.538, c'est à dire qu'il y a certainement un nombre important de producteurs *"inefficients"*.
+
+En utilisant l’espérance conditionnelle $E(\exp(−u_i)|\epsilon_i)$, on peut estimer le score d’efficacité
+pour chaque observation. Dans ce cas, les estimations d'efficacité ont des valeurs comprises entre zéro et un, où un indique que le producteur de pommes est **pleinement efficace** dans sa production et zéro indique que le producteur est **totalement inefficace**.
+
+```{r}
+#| label: effic
+#| code-fold: false
+efficiencies <- efficiencies(cd_sfa) |> as_tibble()
+```
+
+```{r}
+#| label: efficiency_plot
+#| echo: false
+#| fig-align: center
+
+apples <- bind_cols(apples, efficiencies)
+
+apples |>
+    filter(qOut < 15000000) |>
+    ggplot() +
+    aes(y = qOut, x = efficiency) +
+    geom_point(colour = "darkorchid") +
+    labs(
+        title = "Relation entre l'efficacité des producteurs et l'output",
+        subtitle = "Note : Les 2 producteurs dont la production est supérieure à 15M sont exclus",
+        x = "Efficacité",
+        y = expression(q[Out]),
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    geom_smooth(
+        method = "lm",
+        formula = y ~ x
+    )
+```
+
+- Le graphique ci-dessus nous permet de constater qu'en moyenne, plus la production est elevée, plus l'efficacité du producteur estimée par le modèle **Cobb-Douglas SFA**  le sera à son tour. Néanmoins, les producteurs dont la production est très importante ne sont pourtant pas les plus efficaces techniquement comme le montrent les quelques points qui se détachent de la tendance linéaire.
+
+#### Tests statistiques
+
+On va une fois de plus utiliser un test de rapport de vraisemblance. 
+
+Dans notre cas, on veut comparer le modèle **Cobb-Douglas** estimé par *Moindres Carrés Ordinaires* et le modèle **Cobb-Douglas SFA** estimé par la méthode du *Maximum de Vraisemblance*. 
+
+Les hypothèses du test sont les suivantes :
+$$
+\begin{cases}
+H_0: \text{Modele } 1 \Rightarrow \text{Ordinary Least Squares}\\
+H_1: \text{Modele } 2 \Rightarrow \text{Error Component Frontier}
+\end{cases}
+$$
+
+```{r}
+#| label: lrtest_cd_sfa
+#| echo: false
+lrtest_cd_sfa <- lrtest(cd_sfa)
+likelihood_models <- round(lrtest_cd_sfa$LogLik, 3)
+pvalue_lrtest_cd_sfa <- round(lrtest_cd_sfa$`Pr(>Chisq)`[2], 3)
+```
+
+La statistique de test est $\lambda_{LR} = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal{L}_2)$
+
+- $\mathcal{L}_1 =$ `r likelihood_models[1]`
+
+- $\mathcal{L}_2 =$ `r likelihood_models[2]`
+
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r pvalue_lrtest_cd_sfa` $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire que le modèle de frontière de production Cobb-Douglas offre un meilleur ajustement.**
+
+> Même si le modèle SFA a une log-vraisemblance légèrement inférieure au modèle Translog, il n'ajoute pas de problème de multicolinéarité et permet en plus d'estimer les scores d'efficacité des producteurs.

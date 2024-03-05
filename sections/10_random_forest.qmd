@@ -1,0 +1,121 @@
+### Machine Learning de production
+
+::: {.callout-tip}
+
+## Random Forest
+
+À titre expérimental, il est envisageable d'explorer l'utilisation du **Machine Learning** pour étudier la production de pommes. 
+
+Cependant, compte tenu du peu de données disponibles, cette approche n'est pas idéale. Nous envisageons néanmoins d'appliquer un algorithme de **Random Forest**. Ce modèle permet d'extraire l'importance des variables, offrant ainsi une certaine transparence dans le fonctionnement de ce modèle de Machine Learning souvent perçu comme une boîte noire.
+
+Comme pour les fonction de production nous tentons d'expliquer la variable `qOut` à partir des variables `qLab`, `qCap` et `qMat`.
+
+:::
+
+- Effectuons un **train-test split** sur nos données.
+
+```{r}
+#| label: machine_learning
+#| code-fold: false
+apples_ML <- apples |> select(qOut, qCap, qLab, qMat)
+split <- apples_ML |> initial_split(prop = 2 / 3)
+df_train <- split |> training()
+df_test <- split |> testing()
+```
+
+```{r}
+#| label: best_model_old
+#| echo: false
+# task <- makeRegrTask(data = df_train, target = "qOut")
+
+# Tuning
+# estimateTimeTuneRanger(task)
+# rf <- tuneRanger(task,
+#                 tune.parameters = c("mtry", "min.node.size"),
+#                 num.trees = 1000)
+
+# Best model
+# params <- rf$recommended.pars
+```
+
+```{r}
+#| label: random_forest
+#| code-fold: false
+best_model <- ranger(
+    formula = qOut ~ .,
+    data = df_train,
+    mtry = 1,
+    min.node.size = 2,
+    importance = "permutation"
+)
+```
+
+```{r}
+#| label: ml_metrics
+#| echo: false
+pred <- predict(best_model, data = df_test)$predictions
+metric_mae <- mean(abs(pred - df_test$qOut))
+metric_r2 <- 1 - sum((pred - df_test$qOut)^2) / sum((mean(df_test$qOut) - df_test$qOut)^2)
+```
+
+Le coefficient de détermination $R^2$ associé à ce modèle de Random Forest est de **`r round(metric_r2,3)`**, ce qui est similaire au score que nous avions obtenu précédemment.
+
+Avec le graphique ci-dessous, nous pouvons comparer les valeurs prédites et les valeurs réelles. Lorsqu'un point est parfaitement aligné avec la ligne en pointillés rouge, le modèle fait la bonne prédiction. Cependant, si le point est au-dessus (resp. en-dessous) de la ligne, cela signifie que le modèle a sous-estimé (resp. surestimé) `qOut`.
+
+```{r}
+#| label: compare_preds
+#| echo: false
+#| fig-align: center
+ggplot() +
+    aes(x = pred, y = df_test$qOut) +
+    geom_point() +
+    geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+    labs(
+        x = "Prédiction", y = "Réalité", title = "Comparaison prédiction vs. réalité",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+Lorsque l'on examine l'importance des variables, on observe que la variable `qLab` exerce le plus grand impact dans le modèle de **Random Forest**, tandis que la variable `qCap` a le moins d'influence. C'est en effet assez intéressant car la variable `qLab` est systématiquement significative dans les modèles précédents.
+
+```{r}
+#| label: ml_importance
+#| echo: false
+#| fig-align: center
+importance <- best_model$variable.importance |>
+    as.data.frame()
+
+ggplot(
+    data = importance,
+    aes(
+        x = fct_reorder(
+            row.names(importance),
+            best_model$variable.importance
+        ),
+        y = best_model$variable.importance
+    )
+) +
+    geom_bar(stat = "identity", fill = "royalblue", alpha = 0.5, width = 0.3) +
+    labs(
+        x = "Variables", y = "Importance", title = "Importance des variables",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    coord_flip() +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+En résumé, dans notre contexte, le Machine Learning ne semble pas apporter une valeur ajoutée significative. Le modèle obtenu n'est pas plus performant que les modèles précédents, et nous perdons l'avantage de disposer de coefficients associés à chaque variable.

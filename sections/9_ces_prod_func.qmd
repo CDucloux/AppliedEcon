@@ -1,0 +1,112 @@
+### Fonction de production CES
+
+:::{.callout-tip}
+
+## Forme de la fonction
+
+La fonction de production CES avec 3 variables explicatives s'écrit :
+
+$$
+q_i = \gamma \left(\sum^3_{i=1}\delta_k x_{ik}^{-\rho}\right)^{-\frac{1}{\rho}} + \varepsilon_i
+$$
+
+Cependant, utiliser cette forme fonctionnelle peut s'avérer problématique car elle impose que toute paire d'inputs aient la même élasticité de substitution, soit par exemple que $\sigma_{\{\text{qCap, qLab}\}} = \sigma_{\{\text{qCap, qMat}\}}$, alors même que c'est très loin d'être empiriquement vérifié. Une forme emboîtée permet de résoudre ce problème.
+
+- La **fonction de production CES emboîtée** proposée par @sato1967 dans notre cas s'écrit sous la forme :
+
+$$
+q_{Out} = \gamma\left[\delta \cdot \left(\delta_1 q_{Cap}^{-\rho_1}+ (1-\delta_1)q_{Lab}^{-\rho_1}\right)^{\frac{\rho}{\rho_1}} +(1-\delta)q_{Mat}^{-\rho} \right]^{-{\frac{1}{\rho}}} + \varepsilon_i
+$$
+
+Nous estimerons cette fonction. ^[L'estimation d'une fonction **CES emboîtée** à 3 inputs est disponible dans le package `micEconCES`.]
+
+:::
+
+De part sa définition, la fonction **CES** est à rendements d'échelle constants.
+
+```{r}
+#| label: ces_prod
+#| code-fold: false
+ces_prod <- cesEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    method = "SANN",
+    returnGrad = TRUE,
+)
+```
+
+::: {.callout-warning}
+
+## Méthode d'optimisation SANN
+
+Parmi les méthodes d'optimisation disponibles, aucune ne fonctionne à part celle du **SANN** (Simulated Annealing). La méthode **SANN** ou *Recuit Simulé* en français est une technique probabiliste pour approximer l'optimum global d'une fonction donnée.
+
+Le nom provient du recuit en métallurgie. Pour plus de détail, voir la page wikipédia correspondante : <https://en.wikipedia.org/wiki/Simulated_annealing>
+
+:::
+
+```{r}
+#| label: ces_prod_table
+#| echo: false
+ces_prod_r_squared <- round(summary(ces_prod)$r.squared[, 1], 3)
+
+sigma_qcap_qlab <- round(ces_prod$ela[1], 2)
+aes_ces_prod <- round(ces_prod$ela[2], 2)
+
+summary(ces_prod)$coefficients |>
+    as_tibble() |>
+    add_column(
+        coefnames = c("$\\gamma$", "$\\delta_1$", "$\\delta$", "$\\rho_1$", "$\\rho$"),
+    ) |>
+    mutate(signif = makestars(`Pr(>|t|)`)) |>
+    gt(rowname_col = "coefnames") |>
+    fmt_number(decimals = 3) |>
+    cols_hide("t value") |>
+    fmt_markdown(coefnames) |>
+    fmt_markdown(signif) |>
+    cols_label(
+        Estimate = md("**Coefficients**"),
+        `Std. Error` = md("**Ecart Type**"),
+        `Pr(>|t|)` = md("**Pvalues**"),
+        signif = md("**Significativité**")
+    ) |>
+    tab_header(
+        title = md("**Fonction de production CES emboîtée**"),
+        subtitle = md("Variable dépendante : `qOut`")
+    ) |>
+    tab_footnote(
+        footnote = md(
+            glue::glue(
+                "*Observations : 140*
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                $R^2 =$ {ces_prod_r_squared}"
+            )
+        )
+    ) |>
+    tab_footnote(
+        footnote = md("***")
+    ) |>
+    tab_footnote(
+        footnote = md("<u>**Elasticités de Substitution**</u>")
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue(" *Hicks-McFadden* $\\Rightarrow \\sigma_{\\text{\\{qCap, qLab\\}}} =$ [sigma_qcap_qlab]",
+            .open = "[",
+            .close = "]"
+        ))
+    ) |>
+    tab_footnote(
+        footnote = md(glue::glue("*Allen-Uzawa* $\\Rightarrow \\sigma_{\\text{\\{qCap, qLab\\}} | \\text{qMat}} =$ [aes_ces_prod]",
+            .open = "[",
+            .close = "]"
+        ))
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+- L'élasticité de substitution de *Hicks-McFadden* $\left(\frac{1}{1 + \rho_1}\right)$ mesure la substituabilité entre les deux premiers facteurs de production, c'est à dire entre `qCap` et `qLab`. Les deux facteurs de production sont fortement substituables.
+
+- L'élasticité de substitution de *Allen-Uzawa* $\left(\frac{1}{1 + \rho}\right)$ est ici égale à **`r aes_ces_prod`**. Celle-ci étant supérieure à 1, cela signifie que le facteur de production `qMat` est fortement substituable entre la combinaison des 2 autres facteurs de productions `qCap` et `qLab`. En d'autres termes, une augmentation du prix relatif d'une combinaison des 2 facteurs (`qCap` et `qLab`) entraînera une substitution vers `qMat`.

@@ -1,0 +1,96 @@
+| Colonnes    | Description                                                                                              |
+|-------------|----------------------------------------------------------------------------------------------------------|
+| `vCap`      | Coûts associés au **capital** *(foncier compris)*.                                                       |
+| `vLab`      | Coûts associés au **travail** *(y compris la rémunération du travail familial non rémunéré)*.            |
+| `vMat`      | Coûts des **matières intermédiaires** *(plantations, engrais, pesticides, carburant, etc)*.              |
+| `qApples`   | Indice de quantité des pommes produites.                                                                 |
+| `qOtherOut` | Indice de quantité de tous les autres outputs.                                                           |
+| `qOut`      | Indice de quantité de toute la production $\Rightarrow 580000 \cdot (\text{qApples} + \text{qOtherOut})$ |
+| `pCap`      | Indice des prix du **capital**.                                                                           |
+| `pLab`      | Indice des prix du **travail**.                                                                           |
+| `pMat`      | Indice des prix des **matières intermédiaires**.                                                          |
+| `pOut`      | Indice des prix de la production globale.                                                                 |
+| `adv`       | Distingue les producteurs qui sont conseillés par des laboratoires d'agronomie.                           |
+
+: Descriptif des colonnes {.hover}
+
+### Tableau descriptif {#sec-desc-table}
+
+> Ce tableau descriptif retrace les 10 premières observations et l'ensemble des variables associées dans le *dataset*.
+
+```{r}
+#| label: descriptive table
+#| echo: false
+apples |>
+    head(n = 10) |>
+    gt() |>
+    tab_header(
+        title = md("**Producteurs de pommes 🍎**"),
+        subtitle = md("*140 producteurs* 🇫🇷 *(1986)*")
+    ) |>
+    tab_source_note(
+        source_note = md(
+            "`Source`: *Ivaldi et al. (1996)*"
+        )
+    ) |>
+    tab_spanner(
+        label = "Costs",
+        columns = c("vCap", "vLab", "vMat")
+    ) |>
+    tab_spanner(
+        label = "Price Index",
+        columns = c("pCap", "pLab", "pMat", "pOut")
+    ) |>
+    tab_spanner(
+        label = "Quantity Index",
+        columns = c("qApples", "qOtherOut", "qOut")
+    ) |>
+    tab_spanner(
+        label = "Factor Quantities",
+        columns = c("qCap", "qLab", "qMat")
+    ) |>
+    tab_style(
+        style = list(
+            cell_fill(color = "lavenderblush")
+        ),
+        location = cells_body(columns = c(vCap, vLab, vMat))
+    ) |>
+    tab_style(
+        style = list(
+            cell_fill(color = "ivory")
+        ),
+        location = cells_body(columns = c(qApples, qOtherOut, qOut))
+    ) |>
+    tab_style(
+        style = list(
+            cell_fill(color = "aliceblue")
+        ),
+        location = cells_body(columns = c(pCap, pLab, pMat, pOut))
+    ) |>
+    fmt_number(suffixing = TRUE, n_sigfi = 2) |>
+    text_case_match(
+        "1.0" ~ fontawesome::fa("check"),
+        "0" ~ fontawesome::fa("xmark"),
+        .locations = cells_body(columns = adv)
+    ) |>
+    cols_label(
+        N = md("$N$"),
+        vCap = md("$v_{Cap}$"),
+        vLab = md("$v_{Lab}$"),
+        vMat = md("$v_{Mat}$"),
+        qApples = md("$q_{Apples}$"),
+        qOtherOut = md("$q_{OtherOut}$"),
+        qOut = md("$q_{Out}$"),
+        pCap = md("$p_{Cap}$"),
+        pLab = md("$p_{Lab}$"),
+        pMat = md("$p_{Mat}$"),
+        pOut = md("$p_{Out}$"),
+        adv = md("$adv$"),
+        qCap = md("$q_{Cap}$"),
+        qLab = md("$q_{Lab}$"),
+        qMat = md("$q_{Mat}$")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```

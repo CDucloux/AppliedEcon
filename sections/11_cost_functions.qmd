@@ -1,0 +1,224 @@
+### Fonction de coût Cobb-Douglas 
+
+:::{.callout-tip}
+
+## Forme de la fonction
+$$
+c_i = A \prod_{k=1}^{3} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
+$$
+
+- Dans notre cas la fonction de coût Cobb-Douglas s'écrit : 
+
+$$
+c_i = A \cdot q_{Out}^{\alpha_1} \cdot p_{Cap}^{\alpha_2} \cdot p_{Lab}^{\alpha_3} \cdot p_{Mat}^{\alpha_4} \cdot \varepsilon_i
+$$
+
+En linéarisant on obtient :
+
+$$
+\ln(c_i) = \ln(A) + \alpha_1 \cdot \ln(q_{out}) +\alpha_2 \cdot \ln(p_{Cap})+\alpha_3 \cdot \ln(p_{Lab})+\alpha_4 \cdot \ln(p_{Mat}) + \ln(\varepsilon_i)
+$$
+
+:::
+
+```{r}
+#| label: cobb_cost
+#| code-fold: false
+cobb_cost <- translogCostEst(
+    cName = "cost",
+    yName = "qOut",
+    pName = c("pCap", "pLab", "pMat"),
+    apples, homPrice = FALSE,
+    linear = TRUE
+)
+```
+
+```{r}
+#| label: cobb_cost_table
+#| echo: false
+gtgazer(
+    cobb_cost,
+    n_coef = 4,
+    coefnames = c("$A$", "$\\alpha_1$", "$\\alpha_2$", "$\\alpha_3$", "$\\alpha_4$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qOut`",
+        "- Coefficient associé à la variable `pCap`",
+        "- Coefficient associé à la variable `pLab`",
+        "- Coefficient associé à la variable `pMat`"
+    ),
+    title = "**Fonction de coût Cobb Douglass**",
+    bg_color = bg_color
+)
+```
+
+-  Le coefficient de 0.373 pour `qOut` signifie que si la production augmente de 1%, le coût total augmentera de 0.373%, *ceteris paribus*.
+
+- Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'1% du prix du travail entraîne une augmentation d'environ 0.464% du coût total, *ceteris paribus*.
+
+- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux entraine une augmentation d'environ 0.486% du coût total, *ceteris paribus*.
+
+Seul le coefficient associé à la variable `pCap` n'est pas significatif, les autres le sont à 5 % et 10 % pour `pLab`.
+
+#### Rendements d'échelle
+
+Pour déterminer les rendements d'échelle dans le cas d'une fonction de coût **Cobb-Douglas**, il suffit d'utiliser la formule suivante : $\frac{1}{\alpha_1}$ avec $\alpha_1$ le coefficient associé à `qOut` $\Rightarrow$ c'est à dire l'inverse de l'élasticité de la production.
+
+```{r}
+#| label: return_scale_cost_cd
+#| code-fold: false
+alpha_1 <- cobb_cost$coef[2] |> unname()
+
+return_to_scale_cost <- 1 / alpha_1
+```
+
+- On trouve que $\frac{1}{\alpha_1} =$ **`r round(return_to_scale_cost,2)`** $\neq$ **`r round(return_to_scale,2)`** trouvé dans la @sec-cobb-prod-return-scale. Les rendements d'échelle sont donc toujours croissants, mais selon l'estimation de cette fonction de coût, ils le sont encore plus que dans le cas de la fonction de production.
+
+### Fonction de coût Cobb-Douglas de court terme
+
+La fonction de court terme est définie par l'immutabilité d'au moins un facteur de production. Dans notre contexte, le capital est fixe, ce qui nous permet de la caractériser ainsi.
+
+:::{.callout-tip}
+
+## Forme de la fonction
+$$
+c_i = A x_{i3}^{\alpha_f}\prod_{k=1}^{2} p_{ik}^{\alpha_k}q_i^{\alpha_y} \varepsilon_i
+$$
+
+- Dans notre cas la fonction de coût Cobb-Douglas de court terme s'écrit : 
+
+$$
+c_i = A \cdot q_{Out}^{\alpha_1} \cdot q_{Cap}^{\alpha_4} \cdot p_{Lab}^{\alpha_2} \cdot p_{Mat}^{\alpha_3} \cdot \varepsilon_i
+$$
+
+En linéarisant on obtient :
+
+$$
+\ln(c_i) = \ln(A) + \alpha_1 \cdot \ln(q_{out}) +\alpha_4 \cdot \ln(q_{Cap})+\alpha_2 \cdot \ln(p_{Lab})+\alpha_3 \cdot \ln(p_{Mat}) + \ln(\epsilon_i)
+$$
+
+:::
+
+```{r}
+#| label: cobb_cost_ct
+#| code-fold: false
+cobb_cost_ct <- translogCostEst(
+    cName = "cost",
+    yName = "qOut",
+    pName = c("pLab", "pMat"),
+    fNames = "qCap",
+    data = apples,
+    homPrice = FALSE,
+    linear = TRUE
+)
+```
+
+```{r}
+#| label: cobb_cost_ct_table
+#| echo: false
+gtgazer(
+    cobb_cost_ct,
+    n_coef = 4,
+    coefnames = c("$A$", "$\\alpha_1$", "$\\alpha_2$", "$\\alpha_3$", "$\\alpha_4$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qOut`",
+        "- Coefficient associé à la variable `pLab`",
+        "- Coefficient associé à la variable `pMat`",
+        "- Coefficient associé à la variable `qCap`"
+    ),
+    title = "**Fonction de coût Cobb Douglass de court terme**",
+    bg_color = bg_color
+)
+```
+
+-  Le coefficient de 0.279 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.279%, toutes choses étant égales par ailleurs. **On remarque donc, à court terme, que la variation de la quantité produite a moins d'impact sur le coût qu'à long terme.**
+
+- Le coefficient de la variable `qCap` est de 0.237, cela indique qu'une augmentation de 1% de la quantité de capital entraine une augmentation de 0.237% du coût total. A court terme, la quantité de capital a un impact positif et significatif sur le coût de production.
+
+- Les prix du travail (`pLab`) et des matériaux (`pMat`) ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
+
+
+### Fonction de coût Translog
+
+:::{.callout-tip}
+
+## Forme de la fonction
+
+$$
+\begin{gathered}
+\ln(c_i) = \alpha + \sum_{k=1}^3 \beta_k \ln(p_{ik}) + \alpha_q \ln(q_i) \\ +\frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3\beta_{kl}\ln(p_{ik})\ln(p_{il})\frac{1}{2}\alpha_{q}(\ln(q_i))^2 \\
++\frac{1}{2}\sum_{k=1}^3\alpha_{kq}\ln(p_{ik})\ln(q_i)+\varepsilon_i
+\end{gathered}
+$$
+
+- Dans notre cas la fonction de coût Translog s'écrit : 
+
+$$
+\begin{gathered}\ln(c_{i}) =\alpha+\beta_2 \ln(p_{Cap})+\beta_3 \ln(p_{Lab})+\beta_4 \ln(p_{Mat}) + \beta_1\ln(q_{Out}) +
+\left[\frac{1}{4}\beta_{11}(\ln(q_{Out}))^2\right] \\ \left[(\beta_{22}\ln(p^2_{Cap})+\beta_{33}\ln(p^2_{Lab})+\beta_{44}\ln(p^2_{Mat})
++\beta_{23}\ln(p_{Cap}p_{Lab})+\beta_{24}\ln(p_{Cap}p_{Mat})+\beta_{34}\ln(p_{Lab}p_{Mat})\right] + \\
+\frac{1}{2}[\beta_{12}\ln(p_{Cap})\ln(q_{Out})+ \beta_{13}\ln(p_{Lab})\ln(q_{Out}) + \beta_{14}\ln(p_{Mat})\ln(q_{Out})]+\varepsilon_i
+\end{gathered}
+$$
+
+
+:::
+
+```{r}
+#| label: translog_cost_ct
+#| code-fold: false
+translog_cost <- translogCostEst(
+    cName = "cost",
+    yName = "qOut",
+    pName = c("pCap", "pLab", "pMat"),
+    apples, homPrice = FALSE
+)
+```
+
+```{r}
+#| label: translog_cost_ct_table
+#| echo: false
+gtgazer(
+    translog_cost,
+    n_coef = 9,
+    coefnames = c(
+        "$\\alpha$",
+        "$\\beta_1$",
+        "$\\beta_2$",
+        "$\\beta_3$",
+        "$\\beta_4$",
+        "$\\beta_{11}$",
+        "$\\beta_{12}$",
+        "$\\beta_{13}$",
+        "$\\beta_{14}$",
+        "$\\beta_{22}$",
+        "$\\beta_{23}$",
+        "$\\beta_{24}$",
+        "$\\beta_{33}$",
+        "$\\beta_{34}$",
+        "$\\beta_{44}$"
+    ),
+    description = c(
+        "`Intercept`",
+        "`qOut`",
+        "`pCap`",
+        "`pLab`",
+        "`pMat`",
+        "`qOut²`",
+        "`qOut*pCap`",
+        "`qOut*pLab`",
+        "`qOut*pMat`",
+        "`pCap²`",
+        "`pCap*pLab`",
+        "`pCap*pMat`",
+        "`pLab²`",
+        "`pLab*pMat`",
+        "`pMat²`"
+    ),
+    title = "**Fonction de coût Translog**",
+    bg_color = bg_color
+)
+```
+
+- On remarque qu'avec une fonction de coût Translog, le coût dépend majoritairement de la quantité produite, on le constate avec la significativité des coefficients associés à `qOut` et `qOut²`.

@@ -1,0 +1,158 @@
+> Une fonction de production représente la relation entre les quantités des différents facteurs de production utilisés (ici `qCap`, `qLab`, `qMat`) et la quantité de production obtenue (ici `qOut`).
+
+### Fonction de production linéaire
+
+:::{.callout-tip}
+
+## Forme de la fonction
+
+$$
+q_i = \alpha + \sum_{k=1}^3\beta_k x_{ik} + ε_i
+$$
+
+- La **fonction de production linéaire** dans notre cas s'écrit donc sous la forme :
+
+$$
+q_{Out} = \alpha + \beta_1 q_{Cap} + \beta_2 q_{Lab} + \beta_3 q_{Mat} + ε_i
+$$
+
+:::
+
+On a pu constater un lien indéniable entre la quantité produite (`qOut`) et les productivités moyennes. On peut alors légitimement penser qu'il existe une relation entre la quantité produite et les quantités des facteurs de production.
+
+**Avant de s'aventurer dans des formes fonctionnelles plus complexes, commençons par utiliser une simple fonction de production linéaire.**
+
+```{r}
+#| label: linreg_prod
+#| code-fold: false
+linreg_prod <- lm(qOut ~ qCap + qLab + qMat, data = apples)
+```
+
+```{r}
+#| label: linreg_prod_table
+#| echo: false
+gtgazer(
+    linreg_prod,
+    n_coef = 4,
+    coefnames = c("$\\alpha$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`"
+    ),
+    title = "**Fonction de production linéaire**",
+    bg_color = bg_color
+)
+```
+
+- Le coefficient associé à `qCap` est de 1.788, mais il n'est pas statistiquement significatif, ce qui suggère que la quantité de capital n'a pas une influence significative sur la production totale.
+
+- Le coefficient associé à `qLab` est de 11.831 avec un niveau de significativité très élevé, ce qui signifie que pour chaque unité supplémentaire de travail utilisée, la production totale augmente en moyenne de 11.831 unités, *ceteris paribus*. Cela revèle une fois de plus l'influence importante de la quantité de travail sur la quantité d'output.
+
+- Le coefficient associé à `qMat` est de 46.668 avec un niveau de significativité très élevé, ce qui indique que pour chaque unité supplémentaire de matériaux utilisés, la production totale augmente en moyenne de 46.668 unités, *ceteris paribus*.
+
+$R^2_{adj}=$ 0.782 donc 78.2% de la variance de la production totale est expliquée par la variance des variables explicatives.
+
+```{r}
+#| label: heterosced_investigate
+#| echo: false
+predicted_qOut <- predict(linreg_prod) |>
+    as_tibble() |>
+    rename(predicted_qOut = value)
+qOut <- apples |> select(qOut)
+
+residuals <- resid(linreg_prod) |>
+    as_tibble() |>
+    rename(residuals = value)
+
+bind_cols(qOut, predicted_qOut, residuals) |>
+    mutate(diff = predicted_qOut / qOut) |>
+    arrange(diff) |>
+    gt() |>
+    tab_header(title = md("🔎 Comparaison de la **production effective** et de la **production prédite**")) |>
+    cols_label(
+        qOut = md("$q_{Out}$"),
+        predicted_qOut = md("$\\widehat{q_{Out}}$"),
+        residuals = md("$\\varepsilon_i$"),
+        diff = md("$\\widehat{q_{Out}}/q_{Out}$")
+    ) |>
+    fmt_number(suffixing = TRUE, n_sigfi = 2) |>
+    cols_align("center") |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+La multicolinéarité est un problème qui survient lorsque certaines variables explicatives du modèle mesurent le **même phénomène**.
+
+Une multicolinéarité importante peut s’avérer problématique, car elle peut augmenter la variance des coefficients de régression et ainsi les rendre instables. 
+
+```{r}
+#| label: vif_lin
+#| warning: false
+#| echo: false
+#| fig-align: center
+
+collinearity_lin <- check_collinearity(linreg_prod, verbose = FALSE) |>
+    as_tibble()
+
+ggplot(collinearity_lin, aes(x = Term, y = VIF)) +
+    geom_point(size = 3.5, color = "darkgreen") +
+    geom_pointrange(aes(ymin = VIF_CI_low, ymax = VIF_CI_high), color = "darkgreen") +
+    geom_rect(aes(xmin = 0, xmax = 4, ymin = 0, ymax = 5), fill = "green", alpha = 0.01) +
+    labs(
+        title = "Etude des VIF",
+        subtitle = "Pour la fonction de production linéaire",
+        x = "",
+        y = ""
+    ) +
+    ylim(0, 5)
+```
+
+Les **VIF** *(Variance Inflation Factor)* estiment de combien la variance d’un coefficient est augmentée en raison d’une relation linéaire avec d’autres prédicteurs. 
+
+- Ici, les **VIF** sont faibles $(<5)$, il n'y a donc pas de raison de s'inquiéter concernant une éventuelle multicolinéarité
+
+#### Spécification de la forme fonctionnelle
+
+On peut utiliser un **RESET** test pour vérifier si la forme fonctionnelle linéaire est la bonne spécification.
+
+$$
+\begin{cases}
+H_0 : \text{La relation entre la variable a predire et un ou plusieurs predicteurs est lineaire} \\
+H_1 : \text{La relation entre la variable a predire et un ou plusieurs predicteurs est quadratique}
+\end{cases}
+$$
+
+```{r}
+#| label: reset_linreg
+#| echo: false
+reset_linreg_prod <- resettest(linreg_prod, power = 2)
+```
+
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire qu'on va préférer prendre une forme fonctionnelle incluant des effets quadratiques.**
+
+```{r}
+#| label: ppc_linreg_prod
+#| warning: false
+#| echo: false
+#| fig-align: center
+aic_linreg_prod <- AIC(linreg_prod)
+loglik_linreg_prod <- logLik(linreg_prod)[1]
+# check_posterior_predictions(linreg_prod, verbose = FALSE)
+```
+
+::: {.callout-caution}
+
+## Inconvénients de la forme fonctionnelle linéaire
+
+Malgré un $R^2_{adj}$ proche de 0.8, ce qui signifie que le modèle a plutôt un bon ajustement, la spécification linéaire possède plusieurs problèmes :
+
+1. Les rendements d'échelle sont fixés comme constants dans la forme fonctionnelle.
+2. Elle ne permet pas d'évaluer les possibilités de substitution entre les trois facteurs de production.
+
+$\Rightarrow$ Face à ces inconvénients du modèle linéaire, la fonction **Cobb-Douglas** permet de fournir une réponse au point *(1)*.
+
+:::

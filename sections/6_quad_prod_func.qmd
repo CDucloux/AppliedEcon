@@ -1,0 +1,268 @@
+### Fonction de production quadratique
+
+:::{.callout-tip}
+
+## Forme de la fonction
+
+$$
+q_i = \alpha + \sum_{k=1}^3\beta_k x_{ik} + \frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3 \beta_{kl}x_{ik}x_{il} + ε_i
+$$
+
+- La **fonction de production quadratique** dans notre cas s'écrit donc sous la forme :
+
+$$
+\begin{gathered}q_{Out}​=α+β_1​q_{Cap}​+β_2​q_{Lab}​+β_3​q_{Mat}\\
+​+\frac{1}{2}​(β_{11}​q^2_{Cap}​+β_{22}​q^2_{Lab}​+β_{33}​q^2_{Mat})\\
+​+​β_{12}​q_{Cap}​q_{Lab}​+β_{13}​q_{Cap}​q_{Mat}​+β_{23}​q_{Lab}​q_{Mat}​+ε_i​
+\end{gathered}
+$$
+
+:::
+
+**✅ Avantages :** 
+
+- La fonction de production quadratique va permettre d'ajouter des termes *quadratiques* et des effets d'*interaction*, rendant la modélisation plus robuste.
+
+**❌ Inconvénients :** 
+
+- L'ajout de termes supplémentaires implique plus de complexité et de coefficients à estimer $(3^2 = 9)$.
+
+```{r}
+#| label: quad_prod
+#| code-fold: false
+quad_prod <- quadFuncEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    data = apples
+)
+```
+
+```{r}
+#| label: quad_prod_table
+#| echo: false
+gtgazer(
+    quad_prod,
+    n_coef = 9,
+    coefnames = c("$\\alpha$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$", "$\\beta_{11}$", "$\\beta_{12}$", "$\\beta_{13}$", "$\\beta_{22}$", "$\\beta_{23}$", "$\\beta_{33}$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`",
+        "- Coefficient associé à la variable `qCap²`",
+        "- Coefficient associé à la variable `qCap×qLab`",
+        "- Coefficient associé à la variable `qCap×qMat`",
+        "- Coefficient associé à la variable `qLab²`",
+        "- Coefficient associé à la variable `qLab×qMat`",
+        "- Coefficient associé à la variable `qMat²`"
+    ),
+    title = "**Fonction de production quadratique**",
+    bg_color = bg_color
+) |> fmt_number(
+    columns = coefficients,
+    rows = c(5:9),
+    decimals = 5,
+    drop_trailing_zeros = TRUE
+)
+```
+
+```{r}
+#| label: quad_prod_metrics
+#| echo: false
+apples <- apples |> mutate(
+    qCap2 = 0.5 * qCap^2,
+    qLab2 = 0.5 * qLab^2,
+    qMat2 = 0.5 * qMat^2
+)
+
+quad_prod_2 <- lm(
+    qOut ~ qCap + qLab + qMat +
+        qCap2 + qLab2 + qMat2 +
+        I(qCap * qLab) + I(qLab * qMat) + I(qMat * qCap),
+    data = apples
+)
+
+aic_quad_prod <- AIC(quad_prod_2)
+bic_quad_prod <- BIC(quad_prod_2)
+loglik_quad_prod <- logLik(quad_prod_2)[1]
+```
+
+- Le coefficient associé à `qCap` est de 5.27, mais il n'est pas statistiquement significatif, ce qui suggère que la quantité de capital n'a pas une influence significative sur la production totale dans ce modèle.
+
+- Le coefficient associé à `qLab` est de 6.077 avec un niveau de significativité assez faible, ce qui signifie que pour chaque unité supplémentaire de travail utilisée, la production totale augmente en moyenne de 6.077 unités, *toutes choses égales par ailleurs*.
+
+- Le coefficient associé à `qMat` est de 14.303, mais il n'est pas statistiquement significatif, ce qui suggère que la quantité de matériaux n'a pas une influence significative sur la production totale dans ce modèle.
+
+- Le coefficient associé à l'effet d'interaction entre les quantités de capital et de travail (`qCap×qLab`) est négatif et significatif au seuil de 5%. Cela suggère que l'interaction entre ces 2 facteurs a un effet négatif sur la production.
+
+- Le coefficient associé à l'effet d'interaction entre les quantités de tavail et de matériaux (`qLab×qMat`) est positif et significatif au seuil de 1%. Cela suggère que l'interaction entre ces 2 facteurs a un effet positif sur la production.
+
+- Enfin, le coefficient associé à l'effet quadratique des matériaux (`qMat²`) est statistiquement significatif au seuil 5% et possède une valeur négative, ce qui suggère une courbe de rendement d'échelle décroissante pour les matériaux, indiquant que l'augmentation de la quantité de matériaux pourrait initialement augmenter la production, mais à un rythme décroissant.
+
+$R^2_{adj} =$ 0.834 donc 83.4% de la variance de la production totale est expliquée par la variance des variables explicatives. Ce résultat est meilleur que la fonction de production linéaire.
+
+```{r}
+#| label: heterosced_investigate_quad
+#| echo: false
+predicted_qOut <- predict(quad_prod) |>
+    as_tibble() |>
+    rename(predicted_qOut = value)
+qOut <- apples |> select(qOut)
+
+residuals <- resid(quad_prod) |>
+    as_tibble() |>
+    rename(residuals = value)
+
+bind_cols(qOut, predicted_qOut, residuals) |>
+    mutate(diff = predicted_qOut / qOut) |>
+    arrange(diff) |>
+    gt() |>
+    tab_header(title = md("🔎 Comparaison de la **production effective** et de la **production prédite**")) |>
+    cols_label(
+        qOut = md("$q_{Out}$"),
+        predicted_qOut = md("$\\widehat{q_{Out}}$"),
+        residuals = md("$\\varepsilon_i$"),
+        diff = md("$\\widehat{q_{Out}}/q_{Out}$")
+    ) |>
+    fmt_number(suffixing = TRUE, n_sigfi = 2) |>
+    cols_align("center") |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+```{r}
+#| label: vif_quad
+#| warning: false
+#| echo: false
+#| fig-align: center
+collinearity_quad <- check_collinearity(quad_prod_2, verbose = FALSE) |>
+    as_tibble() |>
+    mutate(
+        Term = case_when(
+            Term == "qCap2" ~ "qCap²",
+            Term == "qLab2" ~ "qLab²",
+            Term == "qMat2" ~ "qMat²",
+            Term == "I(qCap * qLab)" ~ "qCap×qLab",
+            Term == "I(qLab * qMat)" ~ "qLab×qMat",
+            Term == "I(qMat * qCap)" ~ "qMat×qCap",
+            .default = as.character(Term)
+        )
+    )
+
+ggplot(collinearity_quad, aes(x = Term, y = VIF)) +
+    geom_point(size = 3.5, color = "darkred") +
+    geom_pointrange(aes(ymin = VIF_CI_low, ymax = VIF_CI_high), color = "darkred") +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 10, ymax = Inf), fill = "red", alpha = 0.01) +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 5, ymax = 10), fill = "blue", alpha = 0.01) +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 0, ymax = 5), fill = "green", alpha = 0.01) +
+    labs(
+        title = "Etude des VIF",
+        subtitle = "Pour la fonction de production quadratique",
+        x = "",
+        y = ""
+    )
+```
+
+Les valeurs de **VIF** sont ici **extrêmement élevées**. La forme fonctionnelle du modèle avec interactions et effets quadratiques entraîne naturellement ces forts problèmes de multicolinéarité.
+
+```{r}
+#| label: posterior_quad
+#| fig-align: center
+#| echo: false
+posterior_predictive_check(quad_prod_2)
+```
+
+On semble être dans une situation de **surapprentissage**, en effet le modèle s'ajuste trop par rapport aux données sur lesquelles il a été entrainé, il généralise donc mal et est très sensible au bruit.
+
+#### Rendements d'échelle
+
+Cette fois, pour calculer les rendements d'échelle, il faut vérifier la relation existant entre :
+
+$$
+\begin{gathered}
+f(\lambda q_{Cap}, \lambda q_{Lab}, \lambda q_{Mat},\\ \lambda q_{Cap}^2, \lambda q_{Lab}^2, \lambda q_{Mat}^2,\\ \lambda q_{Cap}q_{Lab}, \lambda q_{Cap}q_{Mat}, \lambda q_{Lab}q_{Mat})
+\end{gathered}
+$$ {#eq-scales-1}
+
+et
+
+$$
+\begin{gathered}
+\lambda \times f(q_{Cap}, q_{Lab}, q_{Mat},\\ q_{Cap}^2, q_{Lab}^2, q_{Mat}^2, \\q_{Cap}q_{Lab}, q_{Cap}q_{Mat}, q_{Lab}q_{Mat})
+\end{gathered}
+$$ {#eq-scales-2}
+
+::: {.callout-note}
+
+## Note sur les rendements d'échelle
+
+- **Décroissants** si @eq-scales-1 $<$ @eq-scales-2
+
+- **Constants** si @eq-scales-1 $=$ @eq-scales-2
+
+- **Croissants** si @eq-scales-1 $>$ @eq-scales-2
+
+:::
+
+**A VERIFIER**
+
+```{r}
+#| label: quad_return_scale
+#| echo: false
+lambda <- rep(3, 140)
+
+quad_prod_3 <- lm(
+    qOut ~ lambda * qCap + lambda * qLab + lambda * qMat +
+        qCap2 + qLab2 + qMat2 +
+        I(qCap * qLab) + I(qLab * qMat) + I(qMat * qCap),
+    data = apples
+)
+
+quad_x1 <- predict(quad_prod_2)
+quad_x2 <- predict(quad_prod_3)
+
+# quad_x2 / quad_x1
+```
+
+#### Productivité marginale des inputs
+
+```{r}
+#| label: quad_prod_mp
+#| code-fold: false
+quad_prod_margProducts <- quadFuncDeriv(
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    coef = coef(quad_prod),
+    coefCov = vcov(quad_prod)
+)
+```
+
+```{r}
+#| label: quad_prod_mp_table
+#| echo: false
+quad_prod_margProducts |>
+    as_tibble() |>
+    rowid_to_column() |>
+    gt() |>
+    cols_label(
+        rowid = md("$N$"),
+        qCap = md("$MP_{Cap}$"),
+        qLab = md("$MP_{Lab}$"),
+        qMat = md("$MP_{Mat}$")
+    ) |>
+    fmt_number(-rowid) |>
+    fmt_integer(rowid, pattern = "Producteur {x}") |>
+    cols_align("center") |>
+    tab_header(
+        title = md("**Productivités marginales**"),
+        subtitle = md("*Dans le cadre d'une fonction de production `quadratique`*")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+> Cette fois on remarque qu'il existe des **productivités marginales négatives**. Prenons l'exemple du producteur 1. Si celui-ci décide d'ajouter une unité de capital en maintenant les autres inputs constants (travail et matériaux), alors sa production va diminuer de 3.07 unités.

@@ -1,0 +1,264 @@
+### Fonction de production Translog
+
+:::{.callout-tip}
+
+## Forme de la fonction
+
+$$
+\begin{gathered} \ln(q_i) = \alpha + \sum_{k=1}^3\beta_k\ln(x_{ik})\\ 
++ \frac{1}{2}\sum_{l=1}^3\sum_{k=1}^3 \beta_{kl}\ln(x_{ik})ln(x_{il}) + ε_i
+\end{gathered}
+$$
+
+- La **fonction de production Translog** dans notre cas s'écrit donc sous la forme :
+
+$$
+\begin{gathered}\ln(q_{Out})​=α+β_1 \ln(​q_{Cap})​+β_2 \ln(​q_{Lab})​+β_3 \ln(​q_{Mat})\\
+​+\frac{1}{2}​\left(β_{11}\ln(​q^2_{Cap})​+β_{22}\ln(​q^2_{Lab})​+β_{33}\ln(​q^2_{Mat})\right)\\
+​+​β_{12}\ln(​q_{Cap}​q_{Lab})​+β_{13}​\ln(q_{Cap}​q_{Mat})​+β_{23}\ln(​q_{Lab}​q_{Mat})​+ε_i​
+\end{gathered}
+$$
+
+:::
+
+```{r}
+#| label: translog_prod
+#| code-fold: false
+translog_prod <- translogEst(
+    "qOut",
+    c("qCap", "qLab", "qMat"),
+    data = apples
+)
+```
+
+```{r}
+#| label: translog_metrics
+#| echo: false
+apples <- apples |> mutate(
+    log_qOut = log(qOut),
+    qCap2_tl = log(qCap) * log(qCap),
+    qLab2_tl = log(qLab) * log(qLab),
+    qMat2_tl = log(qMat) * log(qMat),
+    qCap_qLab_tl = log(qCap) * log(qLab),
+    qLab_qMat_tl = log(qLab) * log(qMat),
+    qMat_qCap_tl = log(qMat) * log(qCap)
+)
+
+translog_prod_2 <- lm(
+    log_qOut ~ log(qCap) + log(qLab) + log(qMat) +
+        qCap2_tl + qLab2_tl + qMat2_tl +
+        qCap_qLab_tl + qLab_qMat_tl + qMat_qCap_tl,
+    data = apples
+)
+```
+
+```{r}
+#| label: translog_prod_table
+#| echo: false
+gtgazer(
+    translog_prod,
+    n_coef = 10,
+    coefnames = c("$A$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$", "$\\beta_{11}$", "$\\beta_{12}$", "$\\beta_{13}$", "$\\beta_{22}$", "$\\beta_{23}$", "$\\beta_{33}$"),
+    description = c(
+        "- Constante du modèle",
+        "- Coefficient associé à la variable `qCap`",
+        "- Coefficient associé à la variable `qLab`",
+        "- Coefficient associé à la variable `qMat`",
+        "- Coefficient associé à la variable `qCap²`",
+        "- Coefficient associé à la variable `qCap×qLab`",
+        "- Coefficient associé à la variable `qCap×qMat`",
+        "- Coefficient associé à la variable `qLab²`",
+        "- Coefficient associé à la variable `qLab×qMat`",
+        "- Coefficient associé à la variable `qMat²`"
+    ),
+    title = "**Fonction de production Translog**",
+    bg_color = bg_color
+)
+```
+
+**Conséquence** : L'estimation par moindres carrés ordinaires d'une forme flexible comme la fonction *Translog* donne des résultats assez médiocres.
+
+En effet, seulement 3 coefficients sont significatifs au seuil de 10% :
+
+- `qCap×qLab`
+
+- `qCap×qMat`
+
+- `qLab²`
+
+- Le $R^2_{adj}$ est un peu plus elevé que celui de la *Cobb-Douglas*, autour de 0.6. 
+
+```{r}
+#| label: vif_translog
+#| warning: false
+#| echo: false
+#| fig-align: center
+collinearity_translog <- check_collinearity(translog_prod_2, verbose = FALSE) |>
+    as_tibble() |>
+    mutate(
+        Term = case_when(
+            Term == "qCap2_tl" ~ "log(qCap)×log(qCap)",
+            Term == "qLab2_tl" ~ "log(qLab)×log(qLab)",
+            Term == "qMat2_tl" ~ "log(qMat)×log(qMat)",
+            Term == "qCap_qLab_tl" ~ "log(qCap)×log(qLab)",
+            Term == "qLab_qMat_tl" ~ "log(qLab)×log(qMat)",
+            Term == "qMat_qCap_tl" ~ "log(qMat)×log(qCap)",
+            .default = as.character(Term)
+        )
+    )
+
+ggplot(collinearity_translog, aes(x = Term, y = VIF)) +
+    geom_point(size = 3.5, color = "darkred") +
+    geom_pointrange(aes(ymin = VIF_CI_low, ymax = VIF_CI_high), color = "darkred") +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 10, ymax = Inf), fill = "red", alpha = 0.01) +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 5, ymax = 10), fill = "blue", alpha = 0.01) +
+    geom_rect(aes(xmin = 0, xmax = 10, ymin = 0, ymax = 5), fill = "green", alpha = 0.01) +
+    labs(
+        title = "Etude des VIF",
+        subtitle = "Pour la fonction de production translog",
+        x = "",
+        y = ""
+    ) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+En utilisant une fonction de production **Translog**, on aggrave considérablement les problèmes de multicolinéarité, rendant les valeurs de VIF encore plus importantes que dans le cas de la fonction de production quadratique.
+
+```{r}
+#| label: posterior_translog
+#| fig-align: center
+#| echo: false
+posterior_predictive_check(translog_prod_2)
+```
+
+#### Quel modèle préférer ?
+
+**Le test de rapport de vraisemblance est un test d’hypothèse qui compare l’adéquation de l’ajustement de deux modèles afin de déterminer celui qui offre le meilleur ajustement.**
+
+Dans notre cas, on veut comparer le modèle 
+**Cobb-Douglas** et le modèle **Translog**.
+
+Les hypothèses du test sont les suivantes :
+$$
+\begin{cases}
+H_0: \text{Modele } 1 \Rightarrow \text{Cobb-Douglas}\\
+H_1: \text{Modele } 2 \Rightarrow \text{Translog}
+\end{cases}
+$$
+
+```{r}
+#| label: lrtest_cd_translog
+#| echo: false
+lrtest_cd_translog <- lrtest(cd_prod_2, translog_prod_2)
+likelihood_models <- round(lrtest_cd_translog$LogLik, 3)
+pvalue_lrtest_cd_translog <- round(lrtest_cd_translog$`Pr(>Chisq)`[2], 3)
+```
+
+La statistique de test est $\lambda_{LR} = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal{L}_2)$
+
+- $\mathcal{L}_1 =$ `r likelihood_models[1]`
+
+- $\mathcal{L}_2 =$ `r likelihood_models[2]`
+
+$\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r pvalue_lrtest_cd_translog` $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire que le modèle fonction de production Translog offre un meilleur ajustement.**
+
+#### Coût marginal de la production
+
+Le **coût marginal** correspond à la fabrication d'une unité supplémentaire d'output (`qOut`).
+
+La fonction `translogProdFuncMargCost` nous permet d'estimer ces coûts marginaux dans le cadre d'une fonction de production *Translog*.
+
+::: {.callout-note}
+
+## Informations sur les coûts marginaux
+
+- Si le coût marginal est très proche de 0, cela signifie que produire plus ne coûte que très peu cher au producteur. On s'attend donc à ce que les installations qui produisent le plus de pommes aient un coût marginal $\simeq 0$ grâce aux économies d'échelles qu'ils réalisent.
+
+- Si le coût marginal est $< 0$, cela signifie que produire moins coûte plus à l'entreprise. Dans ce cas l'entreprise a intérêt à produire plus jusqu'à atteindre un coût marginal proche de 0.
+
+- Si le coût marginal est $> 0$, alors il faut que le producteur compare le prix `pOut` qu'il peut obtenir et son coût marginal pour décider si il doit ou non produire davantage.
+
+:::
+
+```{r}
+#| label: margcost_chunk
+#| code-fold: false
+margCost <- translogProdFuncMargCost(
+    yName = "qOut",
+    xNames = c("qCap", "qLab", "qMat"),
+    wNames = c("pCap", "pLab", "pMat"),
+    data = apples, coef = coef(translog_prod)
+)
+```
+
+```{r}
+#| label: margcost_table
+#| echo: false
+margCosts <- margCost |>
+    as_tibble() |>
+    rowid_to_column() |>
+    rename(marg_cost = value)
+
+bind_cols(margCosts, apples |> select(pOut, qOut)) |>
+    gt() |>
+    cols_label(
+        rowid = md("$N$"),
+        marg_cost = md("$MC$"),
+        pOut = md("$p_{Out}$"),
+        qOut = md("$q_{Out}$"),
+    ) |>
+    fmt_number(-rowid, suffixing = TRUE) |>
+    fmt_integer(rowid, pattern = "Producteur {x}") |>
+    cols_align("center") |>
+    tab_header(
+        title = md("**Coût marginal de la production**"),
+        subtitle = md("*Note* : Quand $CM > p_{Out}$, la ligne est mise en surbrillance")
+    ) |>
+    data_color(
+        columns = marg_cost,
+        rows = marg_cost > pOut,
+        palette = "darkred",
+        alpha = 0.75
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+#### Vérification des conditions de régularité
+
+> **En premier lieu, on peut vérifier la monotonie de la fonction.**
+
+```{r}
+#| label: translog-mono
+#| code-fold: false
+mono <- translogCheckMono(
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    coef = coef(translog_prod),
+    increasing = TRUE
+)
+```
+
+$\Rightarrow$ Cette fonction de production **Translog** augmente de manière monotone dans les facteurs de production `qCap`, `qLab`, `qMat`, dans 65,7% des observations.
+
+***
+
+> **En second lieu, on peut vérifier si la fonction de production est quasi-concave.**
+
+*La quasi-concavité garantit que la production réagit de manière décroissante aux augmentations marginales des inputs. Autrement dit, une augmentation marginale d'un input entraîne une augmentation marginale de la production qui décroît au fur et à mesure que cet input augmente.*
+
+```{r}
+#| label: translog-curv
+#| code-fold: false
+curv <- translogCheckCurvature(
+    c("qCap", "qLab", "qMat"),
+    data = apples,
+    coef = coef(translog_prod),
+    convexity = FALSE,
+    quasi = TRUE
+)
+```
+
+$\Rightarrow$ Cette fonction de production **Translog** est quasi-concave dans 45% des observations.
