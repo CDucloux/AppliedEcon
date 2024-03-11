@@ -87,6 +87,10 @@ source("R/custom_functions.R")
 
 - [ ] Rendements d'échelle pour la quadratique avec $\lambda$ très très bancal
 
+## Introduction
+
+Ce document représente une étude économétrique et statistique effectuée dans le contexte du cours d'économie appliquée. Son objectif est de condenser et d'expliquer les résultats les plus significatifs obtenus au cours de notre analyse. Notons que de nombreux résultats qui n'étaient pas explicitement demandés dans les questions ont été inclus, car nous avons estimé qu'ils contribuaient à enrichir nos explications et à fournir un contexte plus complet.
+
 ## Imports et configuration
 
 :::{.callout-note}
@@ -169,6 +173,8 @@ apples <- readxl::read_excel("data/appleProdFr86.xlsx")
 
 {{< include sections/9_ces_prod_func.qmd >}}
 
+{{< include sections/10_random_forest.qmd >}}
+
 ## Fonctions de coût
 
 > Une fonction de coût représente la relation entre les quantités des différents facteurs de production utilisés (ici `qCap`, `qLab`, `qMat`) et le coût total de production (ici `vCap + vLab + vMat`).
@@ -186,6 +192,8 @@ apples <- apples |> mutate(cost = vCap + vLab + vMat)
 {{< include sections/11_cost_functions.qmd >}}
 
 ## Profit des producteurs
+
+### Analyse du profit
 
 $$
 \pi = (p_{Out} \cdot q_{Out}) - \overbrace{(v_{Cap} + v_{Lab} + v_{Mat})}^{cost}
@@ -371,6 +379,72 @@ ggplot(apples, aes(x = qOut, y = profit, color = efficiency)) +
     theme(legend.position = "none")
 ```
 
+On peut également tracer les courbes correspondant à la recette totale (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimée de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les points correspondent aux données réelles. 
+
+```{r}
+#| label: pi_study_lines
+#| echo: false
+#| fig-align: center
+qOut_MAX <- 2000000
+
+etude <- apples |>
+    filter(qOut < qOut_MAX) |>
+    select(pOut, qOut, cost, profit, adv_chr) |>
+    mutate(RT = pOut * qOut)
+
+quadra_rt <- lm(RT ~ qOut + I(qOut^2), etude)
+quadra_rt_coefs <- quadra_rt$coefficients
+linear_ct <- lm(cost ~ qOut, etude)
+linear_ct_coefs <- linear_ct$coefficients
+
+qOut <- seq(0, qOut_MAX, by = 1000)
+func_RT <- quadra_rt_coefs[1] + quadra_rt_coefs[2] * qOut + quadra_rt_coefs[3] * qOut^2
+func_CT <- linear_ct_coefs[1] + linear_ct_coefs[2] * qOut
+
+datoum <- data.frame(qOut = qOut, func_RT = func_RT, func_CT = func_CT)
+
+ggplot() +
+    geom_line(data = datoum, aes(x = qOut, y = func_RT), color = "red", lwd = 1) +
+    geom_line(data = datoum, aes(x = qOut, y = func_CT), color = "blue", lwd = 1) +
+    geom_point(data = etude, aes(x = qOut, y = RT), alpha = 0.1, color = "red") +
+    geom_point(data = etude, aes(x = qOut, y = cost), alpha = 0.1, color = "blue") +
+    geom_ribbon(
+        data = subset(datoum, func_RT > func_CT),
+        aes(x = qOut, ymin = func_CT, ymax = func_RT),
+        fill = "black", alpha = 0.1
+    ) +
+    labs(
+        x = expression(q[Out]), y = "RT & CT", title = "Etude du profit",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 2,
+        label = "Profit", color = "black", fontface = "bold"
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_RT) * 1.05,
+        label = "Recette Totale", color = "red"
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 0.65,
+        label = "Coût Total", color = "blue"
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
+
+*On remarque aussi visuellement les rendements d'échelle croissants*
+
 ### Fonction de profit Quadratique Normalisée Symétrique
 
 Using the netput notation (where outputs are positive and inputs are treated as negative)
@@ -394,7 +468,7 @@ snq_func_convex
 # predict(snq_func_convex)
 ```
 
-## Coût moyen
+### Analyse du coût moyen
 
 Le coût moyen représente le coût total (`cost`) de la firme divisé par son niveau d'output (`qOut`).
 
@@ -468,70 +542,5 @@ ggplot() +
 
 Selon @harnay, toutes les valeurs négatives démontrent donc que les producteurs ont un coût marginal croissant, tandis que si la valeur est positive sur ce graphe, cela signifie que le producteur a un coût marginal décroissant. On constate que la majorité des producteurs ont un coût marginal décroissant.
 
-On peut également tracer les courbes correspondant à la recette totale (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimée de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les points correspondent aux données réelles. 
-
-```{r}
-#| label: pi_study_lines
-#| echo: false
-#| fig-align: center
-qOut_MAX <- 2000000
-
-etude <- apples |>
-    filter(qOut < qOut_MAX) |>
-    select(pOut, qOut, cost, profit, adv_chr) |>
-    mutate(RT = pOut * qOut)
-
-quadra_rt <- lm(RT ~ qOut + I(qOut^2), etude)
-quadra_rt_coefs <- quadra_rt$coefficients
-linear_ct <- lm(cost ~ qOut, etude)
-linear_ct_coefs <- linear_ct$coefficients
-
-qOut <- seq(0, qOut_MAX, by = 1000)
-func_RT <- quadra_rt_coefs[1] + quadra_rt_coefs[2] * qOut + quadra_rt_coefs[3] * qOut^2
-func_CT <- linear_ct_coefs[1] + linear_ct_coefs[2] * qOut
-
-datoum <- data.frame(qOut = qOut, func_RT = func_RT, func_CT = func_CT)
-
-ggplot() +
-    geom_line(data = datoum, aes(x = qOut, y = func_RT), color = "red", lwd = 1) +
-    geom_line(data = datoum, aes(x = qOut, y = func_CT), color = "blue", lwd = 1) +
-    geom_point(data = etude, aes(x = qOut, y = RT), alpha = 0.1, color = "red") +
-    geom_point(data = etude, aes(x = qOut, y = cost), alpha = 0.1, color = "blue") +
-    geom_ribbon(
-        data = subset(datoum, func_RT > func_CT),
-        aes(x = qOut, ymin = func_CT, ymax = func_RT),
-        fill = "black", alpha = 0.1
-    ) +
-    labs(
-        x = expression(q[Out]), y = "RT & CT", title = "Etude du profit",
-        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
-    ) +
-    annotate(
-        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 2,
-        label = "Profit", color = "black", fontface = "bold"
-    ) +
-    annotate(
-        geom = "text", x = qOut_MAX * 0.95, y = max(func_RT),
-        label = "Recette Totale", color = "red"
-    ) +
-    annotate(
-        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 0.65,
-        label = "Coût Total", color = "blue"
-    ) +
-    scale_y_continuous(
-        labels = scales::label_number(
-            scale_cut = scales::cut_short_scale()
-        )
-    ) +
-    scale_x_continuous(
-        labels = scales::label_number(
-            scale_cut = scales::cut_short_scale()
-        )
-    )
-```
-
-On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
-
-*On remarque aussi visuellement les rendements d'échelle croissants*
 
 [ {{< fa arrow-up-from-bracket >}} Haut de la page](#imports-et-configuration){.btn .btn-outline-primary .btn role="button" .center}

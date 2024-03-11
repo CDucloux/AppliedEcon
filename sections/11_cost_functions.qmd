@@ -132,11 +132,39 @@ gtgazer(
 )
 ```
 
--  Le coefficient de 0.279 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.279%, toutes choses étant égales par ailleurs. **On remarque donc, à court terme, que la variation de la quantité produite a moins d'impact sur le coût qu'à long terme.**
+-  Le coefficient de 0.279 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.279%, toutes choses étant égales par ailleurs. 
 
 - Le coefficient de la variable `qCap` est de 0.237, cela indique qu'une augmentation de 1% de la quantité de capital entraine une augmentation de 0.237% du coût total. A court terme, la quantité de capital a un impact positif et significatif sur le coût de production.
 
 - Les prix du travail (`pLab`) et des matériaux (`pMat`) ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
+
+### Comparaison Cobb-Douglas : Long Terme vs Court Terme
+
+```{r}
+#| echo: false
+coefficients <- c("Intercept", "qOut", "pCap", "pLab", "pMat","qCap")
+valeur_lt <- c(6.754, 0.373, 0.074, 0.465, 0.486, NA)
+valeur_ct <- c(5.603, 0.279, NA, 0.402, 0.413, 0.237)
+
+df_comparasion <- data.frame(coefficients = coefficients,
+           long_terme = valeur_lt,
+           court_terme = valeur_ct)
+```
+
+```{r}
+#| echo: false
+df_comparasion |> 
+  gt() |> 
+  tab_header(title = md("**Comparasion coefficients Cobb-Douglas**"),
+             subtitle = md("Variable dépendante : `cost`")) |> 
+  cols_label(coefficients = md("**Coefficient**"),
+             long_terme = md("**LT**"),
+             court_terme = md("**CT**")) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+On remarque donc, à court terme, que la variation de la quantité produite (`qOut`) a moins d'impact sur le coût qu'à long terme. Dans les faits à court terme, tous les coefficients sont plus bas. Ils sont contrebalancés par le coefficient de la quantité des capitaux (`qCap`) que le producteur possède.
 
 
 ### Fonction de coût Translog
@@ -222,3 +250,5 @@ gtgazer(
 ```
 
 - On remarque qu'avec une fonction de coût Translog, le coût dépend majoritairement de la quantité produite, on le constate avec la significativité des coefficients associés à `qOut` et `qOut²`.
+
+Le problème dans notre cas avec la fonction de coût translog est que nous n'avons que quatre coefficients significatifs sur les 15 estimés. Cela rend la fonction plus difficile à estimer pour effectuer des prédictions, et les résultats ne sont pas nécessairement plus intéressants que ceux de la fonction Cobb-Douglas que nous avions estimée précédemment.
