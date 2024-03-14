@@ -447,21 +447,23 @@ On constate que le profit est dans un premier temps négatif puis devient positi
 
 ### Fonction de profit Quadratique Normalisée Symétrique
 
+La fonction a été introduite par @kohli1993. Cette forme flexible permet d'estimer les profits et d'imposer globalement des conditions sur la courbure requise (si nécessaire d’imposer la convexité des prix).
+
 ::: {.callout-tip}
 
 ## Forme de la fonction 
 
 $$
-\pi(p) = \sum^n_{i=1}\alpha_i p_i + \frac{1}{2}\left(\sum^n_{i=1}\theta_i p_i\right)^{-1}\sum^n_{i=1}\sum^n_{j=1}\beta_{ij}p_i p_j
+\pi(p) = \sum^4_{i=1}\alpha_i p_i + \frac{1}{2}\left(\sum^4_{i=1}\theta_i p_i\right)^{-1}\sum^4_{i=1}\sum^4_{j=1}\beta_{ij}p_i p_j
 $$
 
 Avec $\pi$ le profit, $p_i$ le prix des netputs, $θ_i$ le poids des prix pour la normalisation et $α_i$, $β_{ij}$ les coefficients à estimer.
 
+*Note* : la notation *netput* correspond au cas où l'output est traité comme une quantité positive et les inputs sont traités comme négatifs.
+
 :::
 
-Cette forme fonctionnelle permet d'imposer globalement des conditions sur la courbure requise (si nécessaire permet d’imposer la convexité des prix)
-
-Using the netput notation (where outputs are positive and inputs are treated as negative)
+- Transformons donc les inputs `qCap`, `qLab` et `qMat` préalablement.
 
 ```{r}
 #| label: netput_transformation
@@ -471,8 +473,11 @@ apples_snq <- apples |>
     mutate(qCap = -qCap, qLab = -qLab, qMat = -qMat)
 ```
 
+- Nous pouvons maintenant estimer la fonction. A noter cependant que la première estimation de la fonction de profit n'est pas convexe dans les prix des netputs ! La commande `snqProfitImposeConvexity` permet de régler ce problème.
+
 ```{r}
 #| label: snq_experimentation
+#| code-fold: false
 snq_func <- snqProfitEst(
     priceNames = c("pOut", "pCap", "pLab", "pMat"),
     quantNames = c("qOut", "qCap", "qLab", "qMat"),
@@ -480,12 +485,119 @@ snq_func <- snqProfitEst(
     data = apples_snq
 )
 
-snq_func_convex <- snqProfitImposeConvexity(snq_func)
-
-snq_func_convex
-
-# predict(snq_func_convex)
+snq_func_convex <- snqProfitImposeConvexity(snq_func, stErMethod = "coefSim", nRep = 50)
 ```
+
+```{r}
+#| label: snq_table
+
+residuals_profit <- apples |>
+    select(profit) |>
+    pull() - predict(snq_func_convex)$profit
+
+r2_profit_convex <- miscTools::rSquared(apples$profit, residuals_profit)[, 1]
+
+r2_values_profit_convex <- snq_func_convex$r2
+
+r2_values_profit_convex |>
+    as.data.frame() |>
+    rownames_to_column(var = "variable") |>
+    as_tibble()
+
+
+rownames_to_column(
+    snq_func_convex$coef$stats |> as.data.frame(),
+    var = "coefs"
+) |>
+    mutate(
+        coefs = glue::glue("$\\{stringr::str_replace(coefs, ' ', '_{')}}}$"),
+        signif = makestars(prob)
+    ) |>
+    as_tibble() |>
+    janitor::clean_names() |>
+    select(coefs, value, std_err, signif) |>
+    gt(rowname_col = "coefs") |>
+    fmt_markdown(c(coefs, signif)) |>
+    fmt_number(value, suffixing = TRUE) |>
+    fmt_number(
+        std_err,
+        suffixing = TRUE,
+        pattern = "+/- {x}"
+    ) |>
+    cols_label(
+        value = md("**Coefficients**"),
+        std_err = md("**Ecart Type**"),
+        signif = md("**Significativité**")
+    ) |>
+    tab_header(
+        title = md("**Fonction de profit SNQ**"),
+        subtitle = md("Variable dépendante : `profit`")
+    ) |>
+    tab_footnote(
+        md(
+            glue::glue("$R^2$ *(Profit)* $=$ {round(r2_profit_convex, 3)}")
+        )
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+#### Elasticités-prix
+
+::: {.callout-note}
+
+## Définition
+
+Une *élasticité-prix* est définie par : 
+
+$$
+E_{ij} = \dfrac{\dfrac{\partial q_i}{q_i}}{\dfrac{\partial p_j}{p_j}} = \dfrac{\partial q_i}{\partial p_j} \cdot \dfrac{p_j}{q_i}
+$$
+
+:::
+
+
+On peut facilement obtenir les estimations des élasticités-prix aux prix moyens et aux quantités moyennes. 
+
+```{r}
+#| label: elas
+#| echo: false
+snq_func_convex$ela$ela |>
+    as.data.frame() |>
+    rownames_to_column(var = "quantities") |>
+    as_tibble() |>
+    mutate(
+        quantities = case_when(
+            quantities == "qOut" ~ "$q_{Out}$",
+            quantities == "qCap" ~ "$q_{Cap}$",
+            quantities == "qLab" ~ "$q_{Lab}$",
+            quantities == "qMat" ~ "$q_{Mat}$"
+        )
+    ) |>
+    gt(rowname_col = "quantities") |>
+    fmt_number(c(-quantities), decimals = 3) |>
+    fmt_markdown(quantities) |>
+    cols_label(
+        pOut = md("$p_{Out}$"),
+        pCap = md("$p_{Cap}$"),
+        pLab = md("$p_{Lab}$"),
+        pMat = md("$p_{Mat}$")
+    ) |>
+    tab_header(
+        title = md("**Elasticités-prix des netputs**"),
+        subtitle = md("")
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    )
+```
+
+- Par exemple, $E_\left\{{q_{Cap} \: ; \: p_{Cap}}\right\} = - 0.327$, c'est à dire que quand le prix du capital augmente de 1%, la quantité de capital va diminuer de  0.327%.
+
+- D'autre part, pour $E_\left\{{q_{Lab} \: ; \: p_{Cap}}\right\} = 0.1$, on voit que quand le prix du capital augmente de 1%, la quantité de travail va augmenter de 0.1%.
+
+> **Conclusion** : On voit bien à travers ce tableau l'ensemble des substitutions qui peuvent s'effectuer
 
 ### Analyse du coût moyen
 
@@ -562,4 +674,4 @@ ggplot() +
 Selon @harnay, toutes les valeurs négatives démontrent donc que les producteurs ont un coût marginal croissant, tandis que si la valeur est positive sur ce graphe, cela signifie que le producteur a un coût marginal décroissant. On constate que la majorité des producteurs ont un coût marginal décroissant.
 
 
-[ {{< fa arrow-up-from-bracket >}} Haut de la page](#imports-et-configuration){.btn .btn-outline-primary .btn role="button" .center}
+[ {{< fa arrow-up-from-bracket >}} Haut de la page](#introduction){.btn .btn-outline-primary .btn role="button" .center}

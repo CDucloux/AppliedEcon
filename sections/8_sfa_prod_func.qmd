@@ -64,6 +64,7 @@ summary(cd_sfa)$mleParam |>
     fmt_markdown(description) |>
     fmt_markdown(coefnames) |>
     fmt_markdown(signif) |>
+    fmt_number(`Std. Error`, pattern = "+/- {x}") |>
     cols_label(
         description = md("**Description**"),
         Estimate = md("**Coefficients**"),
@@ -113,6 +114,33 @@ efficiencies <- efficiencies(cd_sfa) |> as_tibble()
 #| fig-align: center
 
 apples <- bind_cols(apples, efficiencies)
+
+prod_min <- apples |>
+    select(N, efficiency, qCap, qLab, qMat, qOut) |>
+    mutate(N = glue::glue("Producteur {N}")) |>
+    arrange(efficiency) |>
+    slice_min(efficiency, n = 1)
+
+prod_max <- apples |>
+    select(N, efficiency, qCap, qLab, qMat, qOut) |>
+    mutate(N = glue::glue("Producteur {N}")) |>
+    arrange(efficiency) |>
+    slice_max(efficiency, n = 1)
+
+bind_rows(prod_min, prod_max) |>
+    gt(rowname_col = "N") |>
+    cols_label(
+        efficiency = md("$TE$"),
+        qCap = md("$q_{Cap}$"),
+        qLab = md("$q_{Lab}$"),
+        qMat = md("$q_{Mat}$"),
+        qOut = md("$q_{Out}$")
+    ) |>
+    fmt_number(c(-N), suffixing = TRUE) |>
+    tab_header(title = md("**Producteur le moins/plus efficace**")) |>
+    tab_options(
+        table.background.color = bg_color
+    )
 
 apples |>
     filter(qOut < 15000000) |>

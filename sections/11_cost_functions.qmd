@@ -47,7 +47,7 @@ gtgazer(
         "- Coefficient associé à la variable `ln(pLab)`",
         "- Coefficient associé à la variable `ln(pMat)`"
     ),
-    title = "**Fonction de coût Cobb Douglass**",
+    title = "**Fonction de coût Cobb-Douglas**",
     subtitle = "Variable dépendante : `ln(cost)`",
     bg_color = bg_color
 )
@@ -128,17 +128,17 @@ gtgazer(
         "- Coefficient associé à la variable `ln(pMat)`",
         "- Coefficient associé à la variable `ln(qCap)`"
     ),
-    title = "**Fonction de coût Cobb Douglass de court terme**",
+    title = "**Fonction de coût Cobb-Douglas de court terme**",
     subtitle = "Variable dépendante : `ln(cost)`",
     bg_color = bg_color
 )
 ```
 
--  Le coefficient de 0.279 pour `ln(qOut)` signifie que si la production augmente de 1%, le coût de augmentera de 0.279%, toutes choses étant égales par ailleurs. 
+-  Le coefficient de 0.279 pour `ln(qOut)` signifie que si la production augmente de 1%, le coût augmentera de 0.279%, toutes choses étant égales par ailleurs. 
 
 - Le coefficient de la variable `ln(qCap)` est de 0.237, cela indique qu'une augmentation de 1% de la quantité de capital entraine une augmentation de 0.237% du coût total. A court terme, la quantité de capital a un impact positif et significatif sur le coût de production.
 
-- Les prix du travail `ln(pLab)` et des matériaux `ln(pMat)` ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
+- Les prix du travail `ln(pLab)` et des matériaux `ln(pMat)` ont un impact moins important sur le coût total à court terme qu'à long terme, on le remarque car les coefficients sont moins élevés à court terme.
 
 ### Comparaison Cobb-Douglas : Long Terme vs Court Terme
 
@@ -264,4 +264,4 @@ gtgazer(
 
 - On remarque qu'avec une fonction de coût Translog, le coût dépend majoritairement de la quantité produite, on le constate avec la significativité des coefficients associés à `ln(qOut)` et `ln(qOut²)`.
 
-Le problème dans notre cas avec la fonction de coût translog est que nous n'avons que quatre coefficients significatifs sur les 15 estimés. Cela rend la fonction plus difficile à estimer pour effectuer des prédictions, et les résultats ne sont pas nécessairement plus intéressants que ceux de la fonction Cobb-Douglas que nous avions estimée précédemment.
+Le problème dans notre cas avec la fonction de coût translog est que nous n'avons que quatre coefficients significatifs sur les 15 estimés. Cela rend la fonction plus difficile à estimer pour effectuer des prédictions, et les résultats ne sont pas nécessairement plus intéressants ni meilleurs que ceux de la fonction Cobb-Douglas de court terme que nous avions estimée précédemment (on peut notamment s'en convaincre en comparant les valeurs de $R^2_{adj}$ des deux modèles).

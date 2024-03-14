@@ -65,6 +65,7 @@ summary(ces_prod)$coefficients |>
     cols_hide("t value") |>
     fmt_markdown(coefnames) |>
     fmt_markdown(signif) |>
+    fmt_number(`Std. Error`, pattern = "+/- {x}") |>
     cols_label(
         Estimate = md("**Coefficients**"),
         `Std. Error` = md("**Ecart Type**"),
