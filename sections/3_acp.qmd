@@ -114,6 +114,9 @@ H_1: \ln(q_{Out})\text{ ne suit pas une distribution normale}
 $$
 
 ```{r}
+#| label: test_norm
+#| echo: false
+
 pval_shap_test <- shapiro.test(log(apples$qOut))$p.value
 ```
 

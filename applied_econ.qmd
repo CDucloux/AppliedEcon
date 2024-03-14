@@ -1,0 +1,551 @@
+---
+title: "{{< fa flask >}} **Econométrie Appliquée**"
+title-block-banner: imgs/apples.png
+subtitle: "Des 🍏 sur {{< fa brands r-project >}} !"
+toc: true
+toc-title: 📚 Table des matières
+lang: fr
+number-sections: true
+author:
+  - name: "{{< fa brands github >}} [*Corentin Ducloux*](https://github.com/CDucloux)"
+    affiliation: 
+      - name: Université de Tours
+        url: https://www.univ-tours.fr/
+  - name: "{{< fa brands github >}} [*Guillaume Devant*](https://github.com/devgui37)"
+    affiliation: 
+      - name: Université de Tours
+        url: https://www.univ-tours.fr/
+date: today
+date-format: short
+include-in-header: 
+    - text: | 
+        <link href='https://fonts.googleapis.com/css?family=Fira Code' rel='stylesheet'>
+format:
+    html:
+        theme: simplex
+        monofont: "Fira Code"
+        fontsize: 1em
+        embed-resources: true
+        html-math-method: mathjax
+        code-fold: true 
+        anchor-sections: true
+        smooth-scroll: true
+        citations-hover: true
+        footnotes-hover: true
+        link-external-icon: true
+        link-external-newwindow: true
+code-block-bg: "#F1F3F5"
+code-block-border-left: "#d9230f"
+license: "CC BY-SA"
+bibliography: references.bib
+crossref:
+    eq-prefix: équation
+    tbl-prefix: Tableau
+editor_options: 
+    chunk_output_type: console
+---
+
+```{css, echo=FALSE}
+.img-block {
+    margin: auto;
+    width: 85%;
+    padding: 10px;
+    text-align: center;
+}
+.img-block img {
+    display: inline-block;
+    margin: auto;
+    max-width: 100%;
+}
+.title {
+    color: white;
+}
+.subtitle {
+    color: white;
+}
+```
+
+***
+
+:::{.img-block}
+<br>
+<img src="imgs/MECEN_logo.png" alt="MECEN Logo" style="width: 30%;">
+<img src="imgs/UT_logo.jpg" alt="UT Logo" style="width: 45%;">
+
+:::
+
+***
+
+```{r}
+#| label: functions
+#| echo: false
+
+source("R/custom_functions.R")
+```
+
+**TODOS**
+
+- [ ] Rendements d'échelle pour la quadratique avec $\lambda$ très très bancal
+
+## Introduction
+
+Ce document représente une étude économétrique et statistique effectuée dans le contexte du cours d'économie appliquée. Son objectif est de condenser et d'expliquer les résultats les plus significatifs obtenus au cours de notre analyse. Notons que de nombreux résultats qui n'étaient pas explicitement demandés dans les questions ont été inclus, car nous avons estimé qu'ils contribuaient à enrichir nos explications et à fournir un contexte plus complet.
+
+## Imports et configuration
+
+:::{.callout-note}
+
+Tout au long de ce projet, nous utiliserons l'approche [`tidy`](https://www.tidyverse.org/) développée par @wickham2014 plutôt que l'approche `base R` pour manipuler nos données. De plus, l'utilisation du package `micEcon` et de ses annexes nous facilitera grandement le travail d'estimation -- voir @henningsen2017.
+
+:::
+
+```{r}
+#| label: lib_imports
+#| warning: false
+#| code-fold: false
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gt)
+library(tibble)
+library(patchwork)
+library(FactoMineR)
+library(factoextra)
+library(ggtext)
+library(micEcon)
+library(micEconSNQP)
+library(micEconIndex)
+library(micEconCES)
+library(frontier)
+library(ranger)
+library(tuneRanger)
+library(mlr)
+library(rsample)
+library(forcats)
+library(performance)
+```
+
+```{r}
+#| label: colors
+#| echo: false
+bg_color <- "#FCFCFC"
+alpha <- 0.7
+```
+
+```{r}
+#| label: theming
+#| echo: false
+theme_set(theme_minimal())
+thematic::thematic_on(bg = "#FCFCFC", fg = "black", accent = "purple", font = "PT Sans")
+```
+
+## Description des données
+
+Le jeu de données `appleProdFr86` utilisé dans le papier d'économétrie de @ivaldi1996 comprend des données transversales de production de **140** producteurs de pommes français datant de l’année 1986. 
+
+```{r}
+#| label: data_import
+#| code-fold: false
+apples <- readxl::read_excel("data/appleProdFr86.xlsx")
+```
+
+{{< include sections/1_desc.qmd >}}
+
+## Statistiques descriptives
+
+{{< include sections/2_stat_desc.qmd >}}
+
+## Analyse exploratoire
+
+{{< include sections/3_acp.qmd >}}
+
+## Fonctions de production
+
+{{< include sections/4_linear_prod_func.qmd >}}
+
+{{< include sections/5_cobb_douglas_prod_func.qmd >}}
+
+{{< include sections/6_quad_prod_func.qmd >}}
+
+{{< include sections/7_translog_prod_func.qmd >}}
+
+{{< include sections/8_sfa_prod_func.qmd >}}
+
+{{< include sections/9_ces_prod_func.qmd >}}
+
+{{< include sections/10_random_forest.qmd >}}
+
+## Fonctions de coût
+
+D'un point de vue économétrique, l'utilisation d'une fonction de coût
+permet d'introduire un modèle beaucoup plus complet avec 4 équations :
+la fonction de coût et les 3 demandes d'inputs, et non pas une seule équation comme
+lorsqu'on utilise une fonction de production.
+
+> Une fonction de coût représente la relation entre les quantités des différents facteurs de production utilisés (ici `qCap`, `qLab`, `qMat`) et le coût total de production (ici `vCap + vLab + vMat`).
+
+En fait, celle-ci donne le coût minimum associé à un niveau d'output et de prix des inputs, en tenant compte de la technologie disponible.
+
+Calculons d'abord le coût total des inputs, c'est à dire $v_{Cap} + v_{Lab} + v_{Mat}$.
+
+```{r}
+#| label: total_cost
+#| code-fold: false
+apples <- apples |> mutate(cost = vCap + vLab + vMat)
+```
+
+{{< include sections/11_cost_functions.qmd >}}
+
+## Profit des producteurs
+
+### Analyse du profit
+
+$$
+\pi = (p_{Out} \cdot q_{Out}) - \overbrace{(v_{Cap} + v_{Lab} + v_{Mat})}^{cost}
+$$
+
+```{r}
+#| label: profit_formula
+#| code-fold: false
+apples <- apples |> mutate(profit = (pOut * qOut) - cost)
+```
+
+::: {.callout-note}
+
+- Les producteurs dont le profit dépasse 5 millions sont mis en surbrillance [**verte**]{style="color:darkgreen;"}.
+
+- Les producteurs dont le profit est négatif sont en mis subrillance [**rouge**]{style="color:darkred;"}.
+
+:::
+
+```{r}
+#| label: profit_tbl
+#| echo: false
+
+profit_tbl <- apples |>
+    select(pOut, qOut, cost, profit) |>
+    rowid_to_column() |>
+    arrange(desc(profit)) |>
+    select(rowid, profit)
+
+profit_tbl |>
+    gt() |>
+    cols_label(
+        rowid = md("$N$"),
+        profit = md("$\\pi$")
+    ) |>
+    fmt_number(-rowid, suffixing = TRUE) |>
+    fmt_integer(rowid, pattern = "Producteur {x}") |>
+    cols_align("center") |>
+    tab_header(
+        title = md("**Profit des producteurs de pommes**")
+    ) |>
+    data_color(
+        columns = profit,
+        rows = profit < 0,
+        palette = "darkred",
+        alpha = 0.75
+    ) |>
+    data_color(
+        columns = profit,
+        rows = profit > 5000000,
+        palette = "darkgreen",
+        alpha = 0.75
+    ) |>
+    tab_options(
+        table.background.color = bg_color
+    ) |>
+    opt_interactive(use_highlight = TRUE)
+```
+
+```{r}
+#| label: profit_metrics
+#| echo: false
+
+negative_profit <- profit_tbl |>
+    filter(profit < 0) |>
+    count() |>
+    pull()
+
+five_million_profit <- profit_tbl |>
+    filter(profit > 5000000) |>
+    count() |>
+    pull()
+
+min_profit <- profit_tbl |> filter(profit == min(profit))
+max_profit <- profit_tbl |> filter(profit == max(profit))
+
+avg_profit <- profit_tbl |>
+    summarise(mean = mean(profit)) |>
+    pull() |>
+    round(2)
+
+median_profit <- profit_tbl |>
+    summarise(median = median(profit)) |>
+    pull() |>
+    round(2)
+
+min_producer <- min_profit |>
+    select(rowid) |>
+    pull()
+max_producer <- max_profit |>
+    select(rowid) |>
+    pull()
+```
+
+**On remarque tout de même qu'il y a d'importantes différences de profits entre les producteurs.** 
+
+En effet, il y a **`r negative_profit`** producteurs de pommes ayant un profit négatif et **`r five_million_profit`** producteurs dont le profit est supérieur à 5 millions.
+
+- Le profit moyen $\bar\pi$ quant à lui est de **`r format(avg_profit, scientific = F)`**.
+
+- Le profit médian $\tilde\pi$, bien inférieur, est de **`r format(median_profit, scientific = F)`**.
+
+Enfin, le **producteur `r min_producer`** possède le profit le moins elevé du panel et le **producteur `r max_producer`** possède le profit le plus elevé *(voir le tableau ci-dessus)*.
+
+```{r}
+#| label: pi_median
+#| echo: false
+pi_med_adv <- apples |>
+    filter(adv == 1) |>
+    pull(profit) |>
+    median()
+
+pi_med_noadv <- apples |>
+    filter(adv == 0) |>
+    pull(profit) |>
+    median()
+```
+
+On remarque quelque chose d'intéressant : la médiane des profits des producteurs recevant des conseils est bien plus élevée (**`r format(pi_med_adv, scientific = F)`**) que ceux ne recevant pas de conseils (**`r format(pi_med_noadv, scientific = F)`**)
+
+```{r}
+#| label: pi_advice
+#| echo: false
+#| fig-align: center
+apples |>
+    select(pOut, qOut, cost, profit, adv_chr) |>
+    ggplot() +
+    aes(y = profit, x = adv_chr, fill = adv_chr) +
+    geom_boxplot() +
+    labs(
+        title = "Profit en fonction de conseils ou non.",
+        y = "Profit",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+> Nous pouvons aussi nous intéresser au nuage de points des profits et des quantités produites.
+
+```{r}
+#| label: qout_profit_corr
+#| echo: false
+qout_profit_corr <- apples |>
+    select(qOut, profit) |>
+    cor() |>
+    as_tibble() |>
+    select(profit) |>
+    slice(1) |>
+    pull() |>
+    round(2)
+```
+
+*Note* : Etant donné la corrélation de **`r qout_profit_corr`** entre `profit` et `qOut`, on s'attend évidemment à ce que produire plus de pommes entraîne nécessairement un acroissement du profit. 
+
+```{r}
+#| label: profit_qout
+#| fig-align: center
+#| echo: false
+ggplot(apples, aes(x = qOut, y = profit, color = efficiency)) +
+    geom_point() +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_color_continuous(trans = "reverse") +
+    labs(
+        x = expression(q[Out]),
+        y = expression(pi),
+        title = "Relation entre le profit et l'output",
+        subtitle = "Les points les plus foncés représentent les producteurs les plus efficaces techniquement (SFA)",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    theme(legend.position = "none")
+```
+
+On peut également tracer les courbes correspondant à la recette totale (RT) et au coût total (CT). La relation entre RT et la quantité produite est estimée de manière `quadratique` alors que la relation entre le CT et la quantité produite est une relation `linéaire`. Les points correspondent aux données réelles. 
+
+```{r}
+#| label: pi_study_lines
+#| echo: false
+#| fig-align: center
+qOut_MAX <- 2000000
+
+etude <- apples |>
+    filter(qOut < qOut_MAX) |>
+    select(pOut, qOut, cost, profit, adv_chr) |>
+    mutate(RT = pOut * qOut)
+
+quadra_rt <- lm(RT ~ qOut + I(qOut^2), etude)
+quadra_rt_coefs <- quadra_rt$coefficients
+linear_ct <- lm(cost ~ qOut, etude)
+linear_ct_coefs <- linear_ct$coefficients
+
+qOut <- seq(0, qOut_MAX, by = 1000)
+func_RT <- quadra_rt_coefs[1] + quadra_rt_coefs[2] * qOut + quadra_rt_coefs[3] * qOut^2
+func_CT <- linear_ct_coefs[1] + linear_ct_coefs[2] * qOut
+
+datoum <- data.frame(qOut = qOut, func_RT = func_RT, func_CT = func_CT)
+
+ggplot() +
+    geom_line(data = datoum, aes(x = qOut, y = func_RT), color = "red", lwd = 1) +
+    geom_line(data = datoum, aes(x = qOut, y = func_CT), color = "blue", lwd = 1) +
+    geom_point(data = etude, aes(x = qOut, y = RT), alpha = 0.1, color = "red") +
+    geom_point(data = etude, aes(x = qOut, y = cost), alpha = 0.1, color = "blue") +
+    geom_ribbon(
+        data = subset(datoum, func_RT > func_CT),
+        aes(x = qOut, ymin = func_CT, ymax = func_RT),
+        fill = "black", alpha = 0.1
+    ) +
+    labs(
+        x = expression(q[Out]), y = "RT & CT", title = "Etude du profit",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 2,
+        label = "Profit", color = "black", fontface = "bold"
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_RT) * 1.05,
+        label = "Recette Totale", color = "red"
+    ) +
+    annotate(
+        geom = "text", x = qOut_MAX * 0.95, y = max(func_CT) * 0.65,
+        label = "Coût Total", color = "blue"
+    ) +
+    scale_y_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+On constate que le profit est dans un premier temps négatif puis devient positif (partie grisée). Ce petit modèle permet de constater à partir de quelle quantité produite un arboriculteur commence à faire du profit.
+
+*On remarque aussi visuellement les rendements d'échelle croissants*
+
+### Fonction de profit Quadratique Normalisée Symétrique
+
+Using the netput notation (where outputs are positive and inputs are treated as negative)
+
+```{r}
+#| label: snq_experimentation
+apples_snq <- apples |>
+    select(N, pOut, pCap, pLab, pMat, qOut, qCap, qLab, qMat) |>
+    mutate(qCap = -qCap, qLab = -qLab, qMat = -qMat)
+
+snq_func <- snqProfitEst(
+    priceNames = c("pOut", "pCap", "pLab", "pMat"),
+    quantNames = c("qOut", "qCap", "qLab", "qMat"),
+    data = apples_snq,
+)
+
+snq_func_convex <- snqProfitImposeConvexity(snq_func)
+
+snq_func_convex
+
+# predict(snq_func_convex)
+```
+
+### Analyse du coût moyen
+
+Le coût moyen représente le coût total (`cost`) de la firme divisé par son niveau d'output (`qOut`).
+
+```{r}
+#| label: mean_cost
+#| code-fold: false
+apples <- apples |> mutate(CM = cost / qOut)
+```
+
+```{r}
+#| label: mean_cost_study
+#| echo: false
+#| fig-align: center
+qOut_MAX <- 8000000
+
+df_cost <- bind_cols(margCosts, apples |> select(pOut, qOut, cost)) |>
+    filter(marg_cost < 10) |>
+    filter(qOut < qOut_MAX) |>
+    mutate(avg_cost = cost / qOut) |>
+    mutate(diff_cost = avg_cost - marg_cost)
+
+cube_ac <- lm(avg_cost ~ qOut + I(qOut^2) + I(qOut^3) + I(qOut^4) + I(qOut^5) + I(qOut^6) + I(qOut^7) + I(qOut^8), df_cost)
+coefs <- cube_ac$coefficients
+
+qOut <- seq(0, qOut_MAX, by = 1000)
+
+func_AC <- coefs[1] + coefs[2] * qOut + coefs[3] * qOut^2 + coefs[4] * qOut^3 + coefs[5] * qOut^4 + coefs[6] * qOut^5 + coefs[7] * qOut^6 + coefs[8] * qOut^7 + coefs[9] * qOut^8
+datoum2 <- data.frame(qOut = qOut, func_AC = func_AC)
+ggplot() +
+    geom_line(data = datoum2, aes(x = qOut, y = func_AC), color = "purple", lwd = 1) +
+    geom_point(data = df_cost, aes(x = qOut, y = avg_cost), alpha = 0.1, color = "purple") +
+    labs(
+        x = expression(q[Out]), y = "Coût Moyen", title = "Coût moyen en fonction de qOut",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    )
+```
+
+- On constate que le coût moyen diminue considérablement au début de la production, puis se stabilise à mesure que la quantité produite augmente.
+
+***
+
+On peut ensuite analyser la différence entre le coût marginal et le coût moyen (le coût marginal que nous utilisons est celui calculé en Section 5.4.1).
+
+```{r}
+#| label: mean_marginal_cost
+#| echo: false
+#| fig-align: center
+ggplot() +
+    geom_point(
+        data = df_cost, aes(x = qOut, y = diff_cost),
+        color = "purple4",
+        alpha = 0.5
+    ) +
+    labs(
+        x = expression(q[Out]), y = "Coût Moyen - Coût Marginal",
+        title = "Coût Moyen - Coût Marginal en fonction de qOut",
+        caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
+    ) +
+    scale_x_continuous(
+        labels = scales::label_number(
+            scale_cut = scales::cut_short_scale()
+        )
+    ) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red")
+```
+
+Selon @harnay, toutes les valeurs négatives démontrent donc que les producteurs ont un coût marginal croissant, tandis que si la valeur est positive sur ce graphe, cela signifie que le producteur a un coût marginal décroissant. On constate que la majorité des producteurs ont un coût marginal décroissant.
+
+
+[ {{< fa arrow-up-from-bracket >}} Haut de la page](#imports-et-configuration){.btn .btn-outline-primary .btn role="button" .center}

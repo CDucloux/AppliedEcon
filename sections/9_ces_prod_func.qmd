@@ -107,6 +107,8 @@ summary(ces_prod)$coefficients |>
     )
 ```
 
+Si le $R^2$ du modèle est plutôt bon, aucun coefficient n'est significatif.
+
 - L'élasticité de substitution de *Hicks-McFadden* $\left(\frac{1}{1 + \rho_1}\right)$ mesure la substituabilité entre les deux premiers facteurs de production, c'est à dire entre `qCap` et `qLab`. Les deux facteurs de production sont fortement substituables.
 
 - L'élasticité de substitution de *Allen-Uzawa* $\left(\frac{1}{1 + \rho}\right)$ est ici égale à **`r aes_ces_prod`**. Celle-ci étant supérieure à 1, cela signifie que le facteur de production `qMat` est fortement substituable entre la combinaison des 2 autres facteurs de productions `qCap` et `qLab`. En d'autres termes, une augmentation du prix relatif d'une combinaison des 2 facteurs (`qCap` et `qLab`) entraînera une substitution vers `qMat`.

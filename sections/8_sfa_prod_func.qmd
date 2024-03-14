@@ -55,9 +55,9 @@ summary(cd_sfa)$mleParam |>
     fmt_number(decimals = 3) |>
     cols_add(description = c(
         "- Constante du modèle",
-        "- Coefficient associé à la variable `qCap`",
-        "- Coefficient associé à la variable `qLab`",
-        "- Coefficient associé à la variable `qMat`"
+        "- Coefficient associé à la variable `log(qCap)`",
+        "- Coefficient associé à la variable `log(qLab)`",
+        "- Coefficient associé à la variable `log(qMat)`"
     )) |>
     cols_move_to_start(description) |>
     cols_hide("z value") |>
@@ -73,7 +73,7 @@ summary(cd_sfa)$mleParam |>
     ) |>
     tab_header(
         title = md("**Fonction de production Cobb-Douglas SFA**"),
-        subtitle = md("Variable dépendante : `qOut`")
+        subtitle = md("Variable dépendante : `log(qOut)`")
     ) |>
     tab_footnote(
         footnote = md("*Observations : 140*")
