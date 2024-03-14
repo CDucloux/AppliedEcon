@@ -325,14 +325,16 @@ apples |>
     geom_boxplot() +
     labs(
         title = "Profit en fonction de conseils ou non.",
-        y = "Profit",
+        y = expression(pi),
+        x = "",
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
     ) +
     scale_y_continuous(
         labels = scales::label_number(
             scale_cut = scales::cut_short_scale()
         )
-    )
+    ) +
+  theme(legend.position = "none")
 ```
 
 > Nous pouvons aussi nous intéresser au nuage de points des profits et des quantités produites.
@@ -561,5 +563,8 @@ ggplot() +
 
 Selon @harnay, toutes les valeurs négatives démontrent donc que les producteurs ont un coût marginal croissant, tandis que si la valeur est positive sur ce graphe, cela signifie que le producteur a un coût marginal décroissant. On constate que la majorité des producteurs ont un coût marginal décroissant.
 
+## Conclusion
+
+L'utilisation de l'économétrie pour étudier la production, les coûts et le profit est très intéressante pour analyser les facteurs qui influent sur ces variables. On a notamment constaté que, bien que simple, la fonction de Cobb-Douglas fournit généralement beaucoup d'informations, contrairement à la fonction translog qui est plus complexe à interpréter et à utiliser en raison du grand nombre de coefficients impliqués, pour des résultats pas toujours très pertinents. De plus, dans les cas où l'on rencontre de l'inefficacité, on peut obtenir de meilleurs résultats avec un modèle SFA, que nous avons notamment utilisée pour estimer la production. Dans les faits, quelles que soient les variables étudiées, on ne peut pas affirmer qu'une fonction est meilleure qu'une autre. Certaines permettent d'estimer les **coûts marginaux** (Translog), d'autres la **productivité marginale** (Cobb-Douglas, Quadratique, Translog), les **élasticités de substitutions** (CES). C'est pourquoi nous pensons que dans le cas où l'on souhaite étudier les coûts et la production, il est nécessaire d'examiner tous ces outils et de croiser les résultats pour avoir une idée générale du sujet que l'on traite.
 
 [ {{< fa arrow-up-from-bracket >}} Haut de la page](#imports-et-configuration){.btn .btn-outline-primary .btn role="button" .center}
