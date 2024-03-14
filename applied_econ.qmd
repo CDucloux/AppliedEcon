@@ -83,13 +83,9 @@ editor_options:
 source("R/custom_functions.R")
 ```
 
-**TODOS**
-
-- [ ] Rendements d'échelle pour la quadratique avec $\lambda$ très très bancal
-
 ## Introduction
 
-Ce document représente une étude économétrique et statistique effectuée dans le contexte du cours d'économie appliquée. Son objectif est de condenser et d'expliquer les résultats les plus significatifs obtenus au cours de notre analyse. Notons que de nombreux résultats qui n'étaient pas explicitement demandés dans les questions ont été inclus, car nous avons estimé qu'ils contribuaient à enrichir nos explications et à fournir un contexte plus complet.
+Ce document représente une étude économétrique et statistique effectuée dans le contexte de notre cours d'économétrie appliquée dispensé par le [**Pr. Alain BOUSQUET**](https://scholar.google.fr/citations?user=TJAp2fgAAAAJ&hl=fr). Son objectif est de condenser et d'expliquer les résultats les plus significatifs obtenus au cours de notre analyse. Notons que de nombreux résultats qui n'étaient pas explicitement demandés dans les questions ont été inclus, car nous avons estimé qu'ils contribuaient à enrichir nos explications et à fournir un contexte plus complet.
 
 ## Imports et configuration
 
@@ -213,7 +209,6 @@ apples <- apples |> mutate(profit = (pOut * qOut) - cost)
 ::: {.callout-note}
 
 - Les producteurs dont le profit dépasse 5 millions sont mis en surbrillance [**verte**]{style="color:darkgreen;"}.
-
 - Les producteurs dont le profit est négatif sont en mis subrillance [**rouge**]{style="color:darkred;"}.
 
 :::
@@ -452,18 +447,37 @@ On constate que le profit est dans un premier temps négatif puis devient positi
 
 ### Fonction de profit Quadratique Normalisée Symétrique
 
+::: {.callout-tip}
+
+## Forme de la fonction 
+
+$$
+\pi(p) = \sum^n_{i=1}\alpha_i p_i + \frac{1}{2}\left(\sum^n_{i=1}\theta_i p_i\right)^{-1}\sum^n_{i=1}\sum^n_{j=1}\beta_{ij}p_i p_j
+$$
+
+Avec $\pi$ le profit, $p_i$ le prix des netputs, $θ_i$ le poids des prix pour la normalisation et $α_i$, $β_{ij}$ les coefficients à estimer.
+
+:::
+
+Cette forme fonctionnelle permet d'imposer globalement des conditions sur la courbure requise (si nécessaire permet d’imposer la convexité des prix)
+
 Using the netput notation (where outputs are positive and inputs are treated as negative)
 
 ```{r}
-#| label: snq_experimentation
+#| label: netput_transformation
+#| code-fold: false
 apples_snq <- apples |>
     select(N, pOut, pCap, pLab, pMat, qOut, qCap, qLab, qMat) |>
     mutate(qCap = -qCap, qLab = -qLab, qMat = -qMat)
+```
 
+```{r}
+#| label: snq_experimentation
 snq_func <- snqProfitEst(
     priceNames = c("pOut", "pCap", "pLab", "pMat"),
     quantNames = c("qOut", "qCap", "qLab", "qMat"),
-    data = apples_snq,
+    form = 0,
+    data = apples_snq
 )
 
 snq_func_convex <- snqProfitImposeConvexity(snq_func)

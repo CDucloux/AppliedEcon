@@ -42,27 +42,28 @@ gtgazer(
     coefnames = c("$A$", "$\\alpha_1$", "$\\alpha_2$", "$\\alpha_3$", "$\\alpha_4$"),
     description = c(
         "- Constante du modèle",
-        "- Coefficient associé à la variable `qOut`",
-        "- Coefficient associé à la variable `pCap`",
-        "- Coefficient associé à la variable `pLab`",
-        "- Coefficient associé à la variable `pMat`"
+        "- Coefficient associé à la variable `ln(qOut)`",
+        "- Coefficient associé à la variable `ln(pCap)`",
+        "- Coefficient associé à la variable `ln(pLab)`",
+        "- Coefficient associé à la variable `ln(pMat)`"
     ),
     title = "**Fonction de coût Cobb Douglass**",
+    subtitle = "Variable dépendante : `ln(cost)`",
     bg_color = bg_color
 )
 ```
 
--  Le coefficient de 0.373 pour `qOut` signifie que si la production augmente de 1%, le coût total augmentera de 0.373%, *ceteris paribus*.
+-  Le coefficient de 0.373 pour `ln(qOut)` signifie que si la production augmente de 1%, le coût total augmentera de 0.373%, *ceteris paribus*.
 
-- Le coefficient de `pLab` est de 0.464. Cela indique qu'une augmentation d'1% du prix du travail entraîne une augmentation d'environ 0.464% du coût total, *ceteris paribus*.
+- Le coefficient de `ln(pLab)` est de 0.464. Cela indique qu'une augmentation d'1% du prix du travail entraîne une augmentation d'environ 0.464% du coût total, *ceteris paribus*.
 
-- Le coefficient de `pMat` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux entraine une augmentation d'environ 0.486% du coût total, *ceteris paribus*.
+- Le coefficient de `ln(pMat)` est de 0.486. Il indique qu'une augmentation d'1% du prix des matériaux entraine une augmentation d'environ 0.486% du coût total, *ceteris paribus*.
 
-Seul le coefficient associé à la variable `pCap` n'est pas significatif, les autres le sont à 5 % et 10 % pour `pLab`.
+Seul le coefficient associé à la variable `ln(pCap)` n'est pas significatif, les autres le sont à 5 % et 10 % pour `pLab`.
 
 #### Rendements d'échelle
 
-Pour déterminer les rendements d'échelle dans le cas d'une fonction de coût **Cobb-Douglas**, il suffit d'utiliser la formule suivante : $\frac{1}{\alpha_1}$ avec $\alpha_1$ le coefficient associé à `qOut` $\Rightarrow$ c'est à dire l'inverse de l'élasticité de la production.
+Pour déterminer les rendements d'échelle dans le cas d'une fonction de coût **Cobb-Douglas**, il suffit d'utiliser la formule suivante : $\frac{1}{\alpha_1}$ avec $\alpha_1$ le coefficient associé à `ln(qOut)` $\Rightarrow$ c'est à dire l'inverse de l'élasticité de la production.
 
 ```{r}
 #| label: return_scale_cost_cd
@@ -122,27 +123,28 @@ gtgazer(
     coefnames = c("$A$", "$\\alpha_1$", "$\\alpha_2$", "$\\alpha_3$", "$\\alpha_4$"),
     description = c(
         "- Constante du modèle",
-        "- Coefficient associé à la variable `qOut`",
-        "- Coefficient associé à la variable `pLab`",
-        "- Coefficient associé à la variable `pMat`",
-        "- Coefficient associé à la variable `qCap`"
+        "- Coefficient associé à la variable `ln(qOut)`",
+        "- Coefficient associé à la variable `ln(pLab)`",
+        "- Coefficient associé à la variable `ln(pMat)`",
+        "- Coefficient associé à la variable `ln(qCap)`"
     ),
     title = "**Fonction de coût Cobb Douglass de court terme**",
+    subtitle = "Variable dépendante : `ln(cost)`",
     bg_color = bg_color
 )
 ```
 
--  Le coefficient de 0.279 pour `qOut` signifie que si la production augmente de 1%, le coût de augmentera de 0.279%, toutes choses étant égales par ailleurs. 
+-  Le coefficient de 0.279 pour `ln(qOut)` signifie que si la production augmente de 1%, le coût de augmentera de 0.279%, toutes choses étant égales par ailleurs. 
 
-- Le coefficient de la variable `qCap` est de 0.237, cela indique qu'une augmentation de 1% de la quantité de capital entraine une augmentation de 0.237% du coût total. A court terme, la quantité de capital a un impact positif et significatif sur le coût de production.
+- Le coefficient de la variable `ln(qCap)` est de 0.237, cela indique qu'une augmentation de 1% de la quantité de capital entraine une augmentation de 0.237% du coût total. A court terme, la quantité de capital a un impact positif et significatif sur le coût de production.
 
-- Les prix du travail (`pLab`) et des matériaux (`pMat`) ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
+- Les prix du travail `ln(pLab)` et des matériaux `ln(pMat)` ont un impact moins important sur le coût total à court terme que à long terme, on le remarque car les coefficients sont moins élevés à court terme.
 
 ### Comparaison Cobb-Douglas : Long Terme vs Court Terme
 
 ```{r}
 #| echo: false
-coefficients <- c("`Intercept`", "`qOut`", "`pCap`", "`pLab`", "`pMat`", "`qCap`")
+coefficients <- c("`Intercept`", "`ln(qOut)`", "`ln(pCap)`", "`ln(pLab)`", "`ln(pMat)`", "`ln(qCap)`")
 valeur_lt <- c(6.754, 0.373, 0.074, 0.465, 0.486, NA)
 valeur_ct <- c(5.603, 0.279, NA, 0.402, 0.413, 0.237)
 
@@ -159,7 +161,7 @@ df_comparasion |>
     gt() |>
     tab_header(
         title = md("**Comparasion des coefficients Cobb-Douglas**"),
-        subtitle = md("Variable dépendante : `log(cost)`")
+        subtitle = md("Variable dépendante : `ln(cost)`")
     ) |>
     cols_label(
         coefficients = md("**Coefficients**"),
@@ -239,26 +241,27 @@ gtgazer(
     ),
     description = c(
         "`Intercept`",
-        "`qOut`",
-        "`pCap`",
-        "`pLab`",
-        "`pMat`",
-        "`qOut²`",
-        "`qOut*pCap`",
-        "`qOut*pLab`",
-        "`qOut*pMat`",
-        "`pCap²`",
-        "`pCap*pLab`",
-        "`pCap*pMat`",
-        "`pLab²`",
-        "`pLab*pMat`",
-        "`pMat²`"
+        "`ln(qOut)`",
+        "`ln(pCap)`",
+        "`ln(pLab)`",
+        "`ln(pMat)`",
+        "`ln(qOut²)`",
+        "`ln(qOut)*ln(pCap)`",
+        "`ln(qOut)*ln(pLab)`",
+        "`ln(qOut*ln(pMat)`",
+        "`ln(pCap²)`",
+        "`ln(pCap)*ln(pLab)`",
+        "`ln(pCap)*ln(pMat)`",
+        "`ln(pLab²)`",
+        "`ln(pLab)*ln(pMat)`",
+        "`ln(pMat²)`"
     ),
     title = "**Fonction de coût Translog**",
+    subtitle = "Variable dépendante : `ln(cost)`",
     bg_color = bg_color
 )
 ```
 
-- On remarque qu'avec une fonction de coût Translog, le coût dépend majoritairement de la quantité produite, on le constate avec la significativité des coefficients associés à `qOut` et `qOut²`.
+- On remarque qu'avec une fonction de coût Translog, le coût dépend majoritairement de la quantité produite, on le constate avec la significativité des coefficients associés à `ln(qOut)` et `ln(qOut²)`.
 
 Le problème dans notre cas avec la fonction de coût translog est que nous n'avons que quatre coefficients significatifs sur les 15 estimés. Cela rend la fonction plus difficile à estimer pour effectuer des prédictions, et les résultats ne sont pas nécessairement plus intéressants que ceux de la fonction Cobb-Douglas que nous avions estimée précédemment.

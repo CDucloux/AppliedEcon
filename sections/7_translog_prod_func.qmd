@@ -61,17 +61,18 @@ gtgazer(
     coefnames = c("$A$", "$\\beta_1$", "$\\beta_2$", "$\\beta_3$", "$\\beta_{11}$", "$\\beta_{12}$", "$\\beta_{13}$", "$\\beta_{22}$", "$\\beta_{23}$", "$\\beta_{33}$"),
     description = c(
         "- Constante du modèle",
-        "- Coefficient associé à la variable `qCap`",
-        "- Coefficient associé à la variable `qLab`",
-        "- Coefficient associé à la variable `qMat`",
-        "- Coefficient associé à la variable `qCap²`",
-        "- Coefficient associé à la variable `qCap×qLab`",
-        "- Coefficient associé à la variable `qCap×qMat`",
-        "- Coefficient associé à la variable `qLab²`",
-        "- Coefficient associé à la variable `qLab×qMat`",
-        "- Coefficient associé à la variable `qMat²`"
+        "- Coefficient associé à la variable `ln(qCap)`",
+        "- Coefficient associé à la variable `ln(qLab)`",
+        "- Coefficient associé à la variable `ln(qMat)`",
+        "- Coefficient associé à la variable `ln(qCap²)`",
+        "- Coefficient associé à la variable `ln(qCap)×ln(qLab)`",
+        "- Coefficient associé à la variable `ln(qCap)×ln(qMat)`",
+        "- Coefficient associé à la variable `ln(qLab²)`",
+        "- Coefficient associé à la variable `ln(qLab)×ln(qMat)`",
+        "- Coefficient associé à la variable `ln(qMat²)`"
     ),
     title = "**Fonction de production Translog**",
+    subtitle = "Variable dépendante : `ln(qOut)`",
     bg_color = bg_color
 )
 ```
@@ -80,11 +81,11 @@ gtgazer(
 
 En effet, seulement 3 coefficients sont significatifs au seuil de 10% :
 
-- `qCap×qLab`
+- `ln(qCap)×ln(qLab)`
 
-- `qCap×qMat`
+- `ln(qCap)×ln(qMat)`
 
-- `qLab²`
+- `ln(qLab²)`
 
 - Le $R^2_{adj}$ est un peu plus elevé que celui de la *Cobb-Douglas*, autour de 0.6. 
 
@@ -97,12 +98,12 @@ collinearity_translog <- check_collinearity(translog_prod_2, verbose = FALSE) |>
     as_tibble() |>
     mutate(
         Term = case_when(
-            Term == "qCap2_tl" ~ "log(qCap)×log(qCap)",
-            Term == "qLab2_tl" ~ "log(qLab)×log(qLab)",
-            Term == "qMat2_tl" ~ "log(qMat)×log(qMat)",
-            Term == "qCap_qLab_tl" ~ "log(qCap)×log(qLab)",
-            Term == "qLab_qMat_tl" ~ "log(qLab)×log(qMat)",
-            Term == "qMat_qCap_tl" ~ "log(qMat)×log(qCap)",
+            Term == "qCap2_tl" ~ "ln(qCap)×ln(qCap)",
+            Term == "qLab2_tl" ~ "ln(qLab)×ln(qLab)",
+            Term == "qMat2_tl" ~ "ln(qMat)×ln(qMat)",
+            Term == "qCap_qLab_tl" ~ "ln(qCap)×ln(qLab)",
+            Term == "qLab_qMat_tl" ~ "ln(qLab)×ln(qMat)",
+            Term == "qMat_qCap_tl" ~ "ln(qMat)×ln(qCap)",
             .default = as.character(Term)
         )
     )

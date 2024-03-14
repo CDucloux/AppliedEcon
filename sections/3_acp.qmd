@@ -85,12 +85,12 @@ apples |>
         color = "royalblue"
     ) +
     labs(
-        x = "log(qOut)",
+        x = expression(ln ~ q[Out]),
         y = "Fréquence",
         caption = "Auteurs : @Corentin DUCLOUX, @Guillaume DEVANT, 2024 "
     ) +
     theme(plot.title = element_markdown(face = "bold", size = 15)) +
-    ggtitle("Densité <span style='color:royalblue'>log(qOut)</span> vs. <span style='color:darkred'>loi normale</span>") +
+    ggtitle("Densité <span style='color:royalblue'>ln(qOut)</span> vs. <span style='color:darkred'>loi normale</span>") +
     geom_density(
         color = "royalblue",
         linewidth = 1

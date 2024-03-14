@@ -57,6 +57,7 @@ gtgazer(
         "- Coefficient associé à la variable `qMat²`"
     ),
     title = "**Fonction de production quadratique**",
+    subtitle = "Variable dépendante : `qOut`",
     bg_color = bg_color
 ) |> fmt_number(
     columns = coefficients,

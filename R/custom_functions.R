@@ -10,7 +10,7 @@ makestars <- function(pvalues) {
 }
 
 
-gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) {
+gtgazer <- function(model, n_coef = 4, coefnames, description, title, subtitle, bg_color) {
     if (class(model) %in% c("translogEst")) {
         coefficients <- summary(model)$coefTable[1:n_coef, 1]
         std_values <- summary(model)$coefTable[1:n_coef, 2]
@@ -19,7 +19,6 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         r2 <- round(summary(model)$r2, 3)
         adj_r2 <- round(summary(model)$r2bar, 3)
         n <- summary(model)$nObs
-        dep_variable <- summary(model)$yName
     } else if (class(model) %in% c("quadFuncEst", "translogCostEst")) {
         coefficients <- summary(model$est)$coefficients[, 1]
         std_values <- summary(model$est)$coefficients[, 2]
@@ -28,7 +27,6 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         r2 <- round(model$r2, 3)
         adj_r2 <- round(model$r2bar, 3)
         n <- model$nObs
-        dep_variable <- ifelse(class(model) == "quadFuncEst", model$yName, model$cName)
     } else if (class(model) == "lm") {
         coefficients <- summary(model)$coefficients[, 1]
         std_values <- summary(model)$coefficients[, 2]
@@ -37,7 +35,6 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         r2 <- round(summary(model)$r.squared, 3)
         adj_r2 <- round(summary(model)$adj.r.squared, 3)
         n <- nobs(model)
-        dep_variable <- "qOut"
     }
 
     coefnames <- coefnames
@@ -70,7 +67,7 @@ gtgazer <- function(model, n_coef = 4, coefnames, description, title, bg_color) 
         gt::tab_footnote(footnote = gt::md(glue::glue("$R^2_{{adj}}=$ {adj_r2}"))) |>
         gt::tab_header(
             title = gt::md(title),
-            subtitle = md(glue::glue("Variable dépendante : `{dep_variable}`"))
+            subtitle = gt::md(subtitle)
         ) |>
         gt::tab_options(
             table.background.color = bg_color

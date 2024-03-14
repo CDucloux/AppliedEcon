@@ -42,6 +42,7 @@ gtgazer(
         "- Coefficient associé à la variable `qMat`"
     ),
     title = "**Fonction de production linéaire**",
+    subtitle = "Variable dépendante : `qOut`",
     bg_color = bg_color
 )
 ```

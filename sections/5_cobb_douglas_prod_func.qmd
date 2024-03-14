@@ -44,11 +44,12 @@ gtgazer(
     coefnames = c("$A$", "$\\alpha$", "$\\beta$", "$\\gamma$"),
     description = c(
         "- Constante du modèle",
-        "- Coefficient associé à la variable `qCap`",
-        "- Coefficient associé à la variable `qLab`",
-        "- Coefficient associé à la variable `qMat`"
+        "- Coefficient associé à la variable `ln(qCap)`",
+        "- Coefficient associé à la variable `ln(qLab)`",
+        "- Coefficient associé à la variable `ln(qMat)`"
     ),
     title = "**Fonction de production Cobb-Douglas**",
+    subtitle = "Variable dépendante : `ln(qOut)`",
     bg_color = bg_color
 )
 ```
@@ -95,9 +96,9 @@ collinearity_cobb <- check_collinearity(cd_prod_2, verbose = FALSE) |>
     as_tibble() |>
     mutate(
         Term = case_when(
-            Term == "log_qCap" ~ "log(qCap)",
-            Term == "log_qLab" ~ "log(qLab)",
-            Term == "log_qMat" ~ "log(qMat)",
+            Term == "log_qCap" ~ "ln(qCap)",
+            Term == "log_qLab" ~ "ln(qLab)",
+            Term == "log_qMat" ~ "ln(qMat)",
             .default = as.character(Term)
         )
     )
