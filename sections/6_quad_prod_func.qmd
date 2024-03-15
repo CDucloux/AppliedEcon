@@ -177,56 +177,6 @@ posterior_predictive_check(quad_prod_2)
 
 On semble être dans une situation de **surapprentissage**, en effet le modèle s'ajuste trop par rapport aux données sur lesquelles il a été entrainé, il généralise donc mal et est très sensible au bruit.
 
-#### Rendements d'échelle
-
-Cette fois, pour calculer les rendements d'échelle, il faut vérifier la relation existant entre :
-
-$$
-\begin{gathered}
-f(\lambda q_{Cap}, \lambda q_{Lab}, \lambda q_{Mat},\\ \lambda q_{Cap}^2, \lambda q_{Lab}^2, \lambda q_{Mat}^2,\\ \lambda q_{Cap}q_{Lab}, \lambda q_{Cap}q_{Mat}, \lambda q_{Lab}q_{Mat})
-\end{gathered}
-$$ {#eq-scales-1}
-
-et
-
-$$
-\begin{gathered}
-\lambda \times f(q_{Cap}, q_{Lab}, q_{Mat},\\ q_{Cap}^2, q_{Lab}^2, q_{Mat}^2, \\q_{Cap}q_{Lab}, q_{Cap}q_{Mat}, q_{Lab}q_{Mat})
-\end{gathered}
-$$ {#eq-scales-2}
-
-::: {.callout-note}
-
-## Note sur les rendements d'échelle
-
-- **Décroissants** si @eq-scales-1 $<$ @eq-scales-2
-
-- **Constants** si @eq-scales-1 $=$ @eq-scales-2
-
-- **Croissants** si @eq-scales-1 $>$ @eq-scales-2
-
-:::
-
-**A VERIFIER**
-
-```{r}
-#| label: quad_return_scale
-#| echo: false
-lambda <- rep(3, 140)
-
-quad_prod_3 <- lm(
-    qOut ~ lambda * qCap + lambda * qLab + lambda * qMat +
-        qCap2 + qLab2 + qMat2 +
-        I(qCap * qLab) + I(qLab * qMat) + I(qMat * qCap),
-    data = apples
-)
-
-quad_x1 <- predict(quad_prod_2)
-quad_x2 <- predict(quad_prod_3)
-
-# quad_x2 / quad_x1
-```
-
 #### Productivité marginale des inputs
 
 ```{r}

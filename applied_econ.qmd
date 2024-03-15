@@ -334,7 +334,7 @@ apples |>
             scale_cut = scales::cut_short_scale()
         )
     ) +
-  theme(legend.position = "none")
+    theme(legend.position = "none")
 ```
 
 > Nous pouvons aussi nous intéresser au nuage de points des profits et des quantités produites.
@@ -492,6 +492,7 @@ snq_func_convex <- snqProfitImposeConvexity(snq_func, stErMethod = "coefSim", nR
 
 ```{r}
 #| label: snq_table
+#| echo: false
 
 residuals_profit <- apples |>
     select(profit) |>
@@ -501,11 +502,33 @@ r2_profit_convex <- miscTools::rSquared(apples$profit, residuals_profit)[, 1]
 
 r2_values_profit_convex <- snq_func_convex$r2
 
-r2_values_profit_convex |>
+r2_qOut <- r2_values_profit_convex |>
     as.data.frame() |>
     rownames_to_column(var = "variable") |>
-    as_tibble()
+    as_tibble() |>
+    filter(variable == "qOut") |>
+    pull()
 
+r2_qCap <- r2_values_profit_convex |>
+    as.data.frame() |>
+    rownames_to_column(var = "variable") |>
+    as_tibble() |>
+    filter(variable == "qCap") |>
+    pull()
+
+r2_qLab <- r2_values_profit_convex |>
+    as.data.frame() |>
+    rownames_to_column(var = "variable") |>
+    as_tibble() |>
+    filter(variable == "qLab") |>
+    pull()
+
+r2_qMat <- r2_values_profit_convex |>
+    as.data.frame() |>
+    rownames_to_column(var = "variable") |>
+    as_tibble() |>
+    filter(variable == "qMat") |>
+    pull()
 
 rownames_to_column(
     snq_func_convex$coef$stats |> as.data.frame(),
@@ -537,7 +560,27 @@ rownames_to_column(
     ) |>
     tab_footnote(
         md(
-            glue::glue("$R^2$ *(Profit)* $=$ {round(r2_profit_convex, 3)}")
+            glue::glue("$R^2$ — `profit` $=$ {round(r2_profit_convex, 3)}")
+        )
+    ) |>
+    tab_footnote(
+        md(
+            glue::glue("$R^2$ — `qOut` $=$ {round(r2_qOut , 3)}")
+        )
+    ) |>
+    tab_footnote(
+        md(
+            glue::glue("$R^2$ — `qCap` $=$ {round(r2_qCap , 3)}")
+        )
+    ) |>
+    tab_footnote(
+        md(
+            glue::glue("$R^2$ — `qLab` $=$ {round(r2_qLab , 3)}")
+        )
+    ) |>
+    tab_footnote(
+        md(
+            glue::glue("$R^2$ — `qMat` $=$ {round(r2_qMat , 3)}")
         )
     ) |>
     tab_options(
@@ -677,6 +720,6 @@ Selon @harnay, toutes les valeurs négatives démontrent donc que les producteur
 
 ## Conclusion
 
-L'utilisation de l'économétrie pour étudier la production, les coûts et le profit est très intéressante pour analyser les facteurs qui influent sur ces variables. On a notamment constaté que, bien que simple, la fonction de Cobb-Douglas fournit généralement beaucoup d'informations, contrairement à la fonction translog qui est plus complexe à interpréter et à utiliser en raison du grand nombre de coefficients impliqués, pour des résultats pas toujours très pertinents. De plus, dans les cas où l'on rencontre de l'inefficacité, on peut obtenir de meilleurs résultats avec un modèle SFA, que nous avons notamment utilisée pour estimer la production. Dans les faits, quelles que soient les variables étudiées, on ne peut pas affirmer qu'une fonction est meilleure qu'une autre. Certaines permettent d'estimer les **coûts marginaux** (Translog), d'autres la **productivité marginale** (Cobb-Douglas, Quadratique, Translog), les **élasticités de substitutions** (CES). C'est pourquoi nous pensons que dans le cas où l'on souhaite étudier les coûts et la production, il est nécessaire d'examiner tous ces outils et de croiser les résultats pour avoir une idée générale du sujet que l'on traite.
+L'utilisation de l'économétrie pour étudier la production, les coûts et le profit permet d'apporter un cadre particulièrement pertinent pour analyser les facteurs utilisés dans la production des pommes. On a notamment constaté que, bien qu'élémentaire, la fonction *Cobb-Douglas* fournit généralement beaucoup plus d'informations qu'une fonction linéaire ou quadratique, en étant moins complexe qu'une fonction *Translog*, généralement plus difficile à interpréter et à utiliser en raison du grand nombre de coefficients impliqués, pour des résultats pas toujours très pertinents. De plus, dans les cas où l'on rencontre de l'inefficacité, on peut obtenir de meilleurs résultats avec un modèle *SFA*, que nous avons notamment utilisé pour estimer la production. Dans les faits, quelles que soient les variables étudiées, on ne peut pas affirmer qu'une fonction est meilleure qu'une autre. Certaines permettent d'estimer les **coûts marginaux** *(Translog)*, d'autres les **productivités marginales** *(Cobb-Douglas, Quadratique, Translog)*, les **élasticités de substitutions** *(CES)* ou encore les **élasticités-prix** *(SNQP)*. C'est pourquoi nous pensons que dans le cas où l'on souhaite étudier les coûts, la productionou encore le profit, il est nécessaire d'examiner tous ces outils et de croiser les résultats pour avoir une idée générale du sujet que l'on traite.
 
 [ {{< fa arrow-up-from-bracket >}} Haut de la page](#introduction){.btn .btn-outline-primary .btn role="button" .center}

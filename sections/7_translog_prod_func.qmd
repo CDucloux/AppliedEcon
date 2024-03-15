@@ -157,9 +157,9 @@ pvalue_lrtest_cd_translog <- round(lrtest_cd_translog$`Pr(>Chisq)`[2], 3)
 
 La statistique de test est $\lambda_{LR} = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal{L}_2)$
 
-- $\mathcal{L}_1 =$ `r likelihood_models[1]`
+- $\ln (\mathcal{L}_1) =$ `r likelihood_models[1]`
 
-- $\mathcal{L}_2 =$ `r likelihood_models[2]`
+- $\ln (\mathcal{L}_2) =$ `r likelihood_models[2]`
 
 $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r pvalue_lrtest_cd_translog` $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire que le modèle fonction de production Translog offre un meilleur ajustement.**
 

@@ -95,11 +95,13 @@ summary(cd_sfa)$mleParam |>
 
 - On remarque que les coefficients et les niveaux de significativité trouvés par l'estimateur du maximum de vraisemblance sont très proches de ceux de la Cobb-Douglas estimés par **OLS** dans la @sec-cobb-prod.
 
+> Enfin, les rendements d'échelle sont ici égaux à **1.31**, soit un peu moins que ceux trouvés par la fonction de production *Cobb-Douglas* estimée par MCO.
+
 #### Analyse de l'efficacité technique des producteurs
 
 L'efficacité technique moyenne des 140 producteurs est de 0.538, c'est à dire qu'il y a certainement un nombre important de producteurs *"inefficients"*.
 
-En utilisant l’espérance conditionnelle $E(\exp(−u_i)|\epsilon_i)$, on peut estimer le score d’efficacité
+En utilisant l’espérance conditionnelle $E(\exp(u_i)|\epsilon_i)$, on peut estimer le score d’efficacité
 pour chaque observation. Dans ce cas, les estimations d'efficacité ont des valeurs comprises entre zéro et un, où un indique que le producteur de pommes est **pleinement efficace** dans sa production et zéro indique que le producteur est **totalement inefficace**.
 
 ```{r}
@@ -109,20 +111,19 @@ efficiencies <- efficiencies(cd_sfa) |> as_tibble()
 ```
 
 ```{r}
-#| label: efficiency_plot
+#| label: efficiency_prods
 #| echo: false
-#| fig-align: center
 
 apples <- bind_cols(apples, efficiencies)
 
 prod_min <- apples |>
-    select(N, efficiency, qCap, qLab, qMat, qOut) |>
+    select(N, efficiency, qCap, qLab, qMat, AP_Cap, AP_Lab, AP_Mat, qOut) |>
     mutate(N = glue::glue("Producteur {N}")) |>
     arrange(efficiency) |>
     slice_min(efficiency, n = 1)
 
 prod_max <- apples |>
-    select(N, efficiency, qCap, qLab, qMat, qOut) |>
+    select(N, efficiency, qCap, qLab, qMat, AP_Cap, AP_Lab, AP_Mat, qOut) |>
     mutate(N = glue::glue("Producteur {N}")) |>
     arrange(efficiency) |>
     slice_max(efficiency, n = 1)
@@ -134,13 +135,29 @@ bind_rows(prod_min, prod_max) |>
         qCap = md("$q_{Cap}$"),
         qLab = md("$q_{Lab}$"),
         qMat = md("$q_{Mat}$"),
-        qOut = md("$q_{Out}$")
+        qOut = md("$q_{Out}$"),
+        AP_Cap = md("$AP_{Cap}$"),
+        AP_Lab = md("$AP_{Lab}$"),
+        AP_Mat = md("$AP_{Mat}$"),
     ) |>
     fmt_number(c(-N), suffixing = TRUE) |>
     tab_header(title = md("**Producteur le moins/plus efficace**")) |>
     tab_options(
         table.background.color = bg_color
     )
+
+```
+
+- On remarque que le producteur **59** est le producteur le moins efficace techniquement avec une $TE= 0.1$, c'est à dire qu'il n'est efficace dans l'allocation de ses inputs qu'à 10% (on peut d'ailleurs le constater en s'intéressant aux valeurs des productivités moyennes $AP_{Cap, Lab, Mat}$ qui sont très faibles). 
+
+- A l'inverse, le producteur **73** est le producteur le plus efficace techniquement avec une $TE = 0.88$, c'est à dire qu'il est efficace dans l'allocation de ses inputs à 88%. Ce n'est pas étonnant étant donné les valeurs elevées des productivités moyennes. 
+
+- Enfin, les quantités d'inputs ne sont pas significativement plus importantes pour le producteur **73** et pourtant sa production est 36 fois plus elevée !
+
+```{r}
+#| label: efficiency_plot
+#| echo: false
+#| fig-align: center
 
 apples |>
     filter(qOut < 15000000) |>
@@ -191,9 +208,9 @@ pvalue_lrtest_cd_sfa <- round(lrtest_cd_sfa$`Pr(>Chisq)`[2], 3)
 
 La statistique de test est $\lambda_{LR} = 2\cdot(\ln \mathcal{L}_1-\ln \mathcal{L}_2)$
 
-- $\mathcal{L}_1 =$ `r likelihood_models[1]`
+- $\ln(\mathcal{L}_1) =$ `r likelihood_models[1]`
 
-- $\mathcal{L}_2 =$ `r likelihood_models[2]`
+- $\ln(\mathcal{L}_2) =$ `r likelihood_models[2]`
 
 $\Rightarrow$ Au risque $\alpha = 5\%$, la $p-value$ issue du test est égale à `r pvalue_lrtest_cd_sfa` $< 0.05$, **on rejette donc l'hypothèse nulle $H_0$, c'est à dire que le modèle de frontière de production Cobb-Douglas offre un meilleur ajustement.**
 
